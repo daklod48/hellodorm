@@ -1,0 +1,9 @@
+# HelloDorm: what stays out of the public repository
+review/*.png
+review/before/
+review/part1/
+review/after/
+*.old
+v1/img/*.jpg
+v1/img/skipped.txt
+__pycache__/

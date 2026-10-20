@@ -1,0 +1,93 @@
+rules_version = '2';
+
+// HelloDorm v1 Firestore security rules.
+// Paste into Firebase console > Firestore Database > Rules > Publish.
+// EDIT: the manager list in isManager() must match MANAGER_EMAILS in v1/config.js (lower case).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    function isManager() {
+      return signedIn()
+        && request.auth.token.email != null
+        && request.auth.token.email.lower() in [
+          'manager1@hellodorm-demo.test',
+          'manager2@example.com',
+          'manager3@example.com',
+          'manager4@example.com',
+          'manager5@example.com'
+        ];
+    }
+
+    // Prototype clock offset (manager "skip ahead 15 days"), in milliseconds.
+    function offsetMs() {
+      return exists(/databases/$(database)/documents/config/clock)
+        ? get(/databases/$(database)/documents/config/clock).data.offsetDays * 86400000
+        : 0;
+    }
+
+    // Test data: demo copies (anonymous accounts) and the automated test accounts named tester-...@hellodorm-demo.test.
+    function isTestProfile(d) {
+      return d.get('isDemo', false) == true || (d.get('email', '') >= 'tester-' && d.get('email', '') < 'tester.');
+    }
+    function isTestUser(uid) {
+      return isTestProfile(get(/databases/$(database)/documents/users/$(uid)).data);
+    }
+
+    // Each user reads and writes only their own profile and sub-collections
+    // (items they submitted, orders, notifications).
+    // Managers may also find and delete test data (see tools/cleanup-test-data.py), nothing else.
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+      allow list: if isManager() && (resource.data.isDemo == true || (resource.data.email >= 'tester-' && resource.data.email < 'tester.'));
+      allow get, delete: if isManager() && isTestProfile(resource.data);
+      match /{sub=**} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+        allow list, get, delete: if isManager() && isTestUser(uid);
+      }
+    }
+
+    // Managers can read every submitted item and set a price or reject it.
+    match /{path=**}/items/{itemId} {
+      allow read, update: if isManager();
+    }
+
+    // Shop catalogue state (reserved / sold) for the 30 sample items: anyone can read.
+    // A signed-in user may reserve an item that is free, or whose 48-hour hold has run out.
+    match /shop/{itemId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.keys().hasOnly(['status', 'by', 'until']);
+      allow update: if isManager() || (signedIn()
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.keys().hasOnly(['status', 'by', 'until'])
+        && (resource.data.by == request.auth.uid
+            || (resource.data.status == 'reserved' && resource.data.until < request.time.toMillis() + offsetMs())));
+      allow delete: if isManager() || (signedIn() && resource.data.by == request.auth.uid);
+    }
+
+    // Prototype settings (clock): anyone reads, only managers change.
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if isManager();
+    }
+
+    // Waitlist: anyone can add an entry (launch list, or "ask for a stand" with a typed dorm name); only managers can read.
+    match /waitlist/{entryId} {
+      allow create: if request.resource.data.keys().hasOnly(['email', 'dorm', 'dormName', 'lang', 'at'])
+        && request.resource.data.email is string
+        && request.resource.data.email.size() <= 200
+        && (!('dormName' in request.resource.data) || (request.resource.data.dormName is string && request.resource.data.dormName.size() <= 120));
+      allow read: if isManager();
+    }
+
+    // Counters (visits and key taps, no personal data): anyone can add exactly 1; only managers read.
+    match /stats/{name} {
+      allow create: if request.resource.data.keys().hasOnly(['n']) && request.resource.data.n == 1;
+      allow update: if request.resource.data.keys().hasOnly(['n']) && request.resource.data.n == resource.data.n + 1;
+      allow read: if isManager();
+    }
+  }
+}

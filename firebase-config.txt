@@ -1,0 +1,10 @@
+// HelloDorm Firebase web config (copied from Firebase console, Project settings > Your apps > hellodorm-web, 2026-10-20).
+// These values are meant to be public in web pages; Firestore security rules protect the data.
+const firebaseConfig = {
+  apiKey: "AIzaSyDgKuAjvdrdjKDeOShKaRId3ynigmX_k7M",
+  authDomain: "hellodorm.firebaseapp.com",
+  projectId: "hellodorm",
+  storageBucket: "hellodorm.firebasestorage.app",
+  messagingSenderId: "971938179864",
+  appId: "1:971938179864:web:1b4efcf397788449af0c6d"
+};
