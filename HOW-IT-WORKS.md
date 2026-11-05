@@ -1,6 +1,6 @@
 # How HelloDorm works, explained for a smart reader with no programming background
 
-_Written 20 October 2026 for HelloDorm v1; updated 5 November 2026 for v2 (sections 2, 4, 7, 8, 10, 11 and 12). Plain words. Every technical term is explained the first time it appears._
+_Written 20 October 2026 for HelloDorm v1; updated 5 November 2026 for v2 (sections 2, 4, 7, 8, 10 to 13). Plain words. Every technical term is explained the first time it appears._
 
 **Two versions side by side.** `v1/` is the published first link and is frozen: nobody edits it again. `v2/` started on 5 November 2026 as an exact copy of `v1/` and carries the design and accessibility pass described in section 10. Both use the same Firebase project. Wherever this document says `v1/`, the same file exists in `v2/`.
 
@@ -222,3 +222,33 @@ The professor tested the app and wrote three things: (a) a link that needs no lo
 - New counters (Manager mode, Totals): guest demo orders, feedback forms sent, invite links shared, visits from invites, alerts set, and every feedback answer.
 
 **Optional console step (not needed for anything above).** To store feedback comments in the database instead of only sending them to phones, a new rule would be needed for a `feedback` collection. This was deliberately avoided; ask Claude Code for the rule text if you want it.
+
+## 13. Round 4: accounts and payment like a real app (5 November 2026)
+
+**Accounts.**
+- The link still lands on Home with no wall. Home shows one card with three clear choices: **Sign in**, **Sign up**, **Try the demo account** ("No sign up, ready made history").
+- The app asks for an account only when it is needed: reserving or checking out, wishlist alerts, selling. The dialog always offers the demo account next to Sign in and Sign up, and after the demo starts the person continues straight to where they were going (for example checkout).
+- **Staying signed in.** Firebase Authentication keeps a signed in person on that device after the browser is closed. This was checked in the Firebase code itself (version 12.19.0, `getAuth` starts with `indexedDBLocalPersistence`, the browser's on disk database), so no code change was needed.
+- **Same data on phone and laptop.** Dorm, saved items, cart, alerts, orders and pickup codes are stored in Firestore under `users/<id>`, so the same account shows the same data on every device.
+- **The demo reads as a demo.** New demo copies are named "Demo account" (no more "Alex"), Home says "Welcome to the demo account", and Profile shows "Demo account" even for older demo copies.
+- **What a guest picked comes along.** Sign up (new account): dorm, cart, saved items and filters move in, as before. Sign in (existing account): the guest's cart and saved items are added, and the guest's dorm is used if the account has none. Demo: the guest's dorm and cart are used for the new demo copy.
+- **Guest checkout on the device is gone** (it was round 3's answer to the professor). Checkout now needs an account or the demo; the professor can still reach a pickup code without signing up, through "Try the demo account" (one tap).
+
+**Payment.** Checkout step 2 offers two ways to pay. The app has no card fields at all any more.
+- **Pay by card** sends the person to a **Stripe Payment Link**: a ready made payment page that Stripe hosts. Card details are typed only on Stripe's page; HelloDorm never sees or stores them. Before leaving, the app saves the order (items held, marked "not paid") and remembers its order group code. The link carries `client_reference_id=<group code>` so the payment can be matched in Stripe, plus the email and language. After payment Stripe sends the person back to `.../v2/?paid=1`; the app marks the remembered order paid and shows the success screen. If the person never comes back, the order shows "Payment pending" with "Try card payment again" or "Use demo pay instead".
+- **Demo pay** marks the order paid at once.
+- Both end on the same **success screen**: "Order confirmed", one pickup code per stand naming the dorm (with address and hours), and a **thank you letter** from the team.
+- **Honest limits of a server free setup.** (1) A Payment Link has one fixed price, so the Stripe test page shows that fixed test amount, not the exact cart total. (2) The app trusts the return from Stripe instead of asking Stripe to confirm the payment. Both are fine for a test mode prototype and not for real money. The real fix is a tiny server (for example a free Cloudflare Worker) that creates a Stripe Checkout Session with the exact amount and confirms payment with a **webhook** (a message Stripe sends to that server when a payment succeeds).
+- Until a link is added, "Pay by card" shows as "Not set up yet" and only Demo pay works.
+
+**Stripe setup, click by click (owner).** Stripe's pages could not be opened from the build machine on 5 November 2026, so these steps come from Claude Code's knowledge and were not checked against Stripe today; the names of buttons may differ slightly.
+1. Go to https://dashboard.stripe.com/register and create an account (email, name, password). You do not need to activate payments or give bank details for test mode.
+2. In the dashboard, make sure you are in **test mode** (a "Test mode" switch at the top, or a "Sandbox" in newer dashboards). Test mode pages say "TEST MODE" and never charge real cards.
+3. Open **Payment Links** (left menu, or search "Payment Links") and press **+ New** (or "Create payment link").
+4. Add a product: name `HelloDorm test order`, price `100`, currency `CZK`, one time. Save the product.
+5. Open the **After payment** tab. Choose **Don't show confirmation page** and then **Redirect customers to your website**, and enter: `https://daklod48.github.io/hellodorm/v2/?paid=1`
+6. Press **Create link**. Copy the link; it starts with `https://buy.stripe.com/test_`.
+7. Send the link to Claude Code (or paste it yourself in `v2/config.js`, line `STRIPE_PAYMENT_LINK = ''`, between the quotes) and publish.
+8. To pay on the test page use Stripe's test card `4242 4242 4242 4242`, any future date (for example 12/34), any 3 digit CVC, any name.
+
+**Firebase console: nothing to do.** Email and password sign in and anonymous sign in (for the demo) are already switched on (v1 uses both). The current security rules already let each signed in person read and write only their own `users/<id>` document and its orders, including the new fields `paid`, `payMethod`, `paidAt` and `pendingPay`. Email and password sign in does not depend on the authorized domains list.

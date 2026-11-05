@@ -910,3 +910,38 @@ body.modal-open { position: fixed; left: 0; right: 0; overflow: hidden; width: 1
 .scale-ends { display: flex; justify-content: space-between; font-size: var(--fs-min); color: var(--grey); margin: 4px 2px 0; }
 /* v2: buttons that sat exactly on the 44 px limit measured a fraction under it during animations; 46 px keeps a margin. */
 .cartbtn, .heart, .cat-chip, .chip-btn, .tabs button, .dorm-line, .faq summary, .lang-menu button, .pip-btn { min-height: 46px; }
+
+/* ===================== 22. Round 4: account choices, payment, success letter ===================== */
+.acct { background: var(--white); border-radius: 20px; padding: 16px; box-shadow: var(--sh-1); margin: 0 0 16px; }
+.acct-h { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+.acct-h > .ic { width: 28px; height: 28px; color: var(--green); flex: none; }
+.acct-h p { margin: 2px 0 0; color: var(--grey); font-size: var(--fs-sm); }
+.acct-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.acct-btns .btn.sun { grid-column: 1 / -1; }
+.acct-btns .btn.sun > span, .stack .btn.sun > span { display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
+.acct-btns .btn small, .stack .btn.sun small { font-weight: 500; font-size: var(--fs-min); }
+@media (min-width: 900px) { .acct-btns { grid-template-columns: 1fr 1fr 1.4fr; } .acct-btns .btn.sun { grid-column: auto; } }
+.pay-pick { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.pay-opt { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; min-height: 64px; border-radius: 14px; border: 2px solid var(--field); background: var(--white); cursor: pointer; }
+.pay-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; min-height: 0; }
+.pay-opt .box { width: 26px; height: 26px; flex: none; margin-top: 2px; border-radius: var(--r-pill); border: 2px solid var(--green); display: grid; place-items: center; color: transparent; background: var(--white); }
+.pay-opt .box .ic { width: 16px; height: 16px; stroke-width: 3; }
+.pay-opt > span:last-child { display: flex; flex-direction: column; gap: 2px; }
+.pay-opt b { display: flex; align-items: center; gap: 6px; }
+.pay-opt small { color: var(--grey); font-size: var(--fs-sm); }
+.pay-opt:has(input:checked) { background: var(--green); border-color: var(--green); color: var(--white); }
+.pay-opt:has(input:checked) small { color: var(--on-dark); }
+.pay-opt input:checked + .box { color: var(--green); animation: picked .3s var(--spring); }
+.pay-opt:has(input:focus-visible) { outline: 3px solid var(--sun); outline-offset: 2px; }
+.pay-opt.off { cursor: not-allowed; background: var(--grey-l); border-style: dashed; }
+.pay-opt.off .box { border-color: var(--grey); }
+.confirmed { display: flex; gap: 14px; align-items: center; padding: 18px; border-radius: 20px; background: var(--grad-green); color: var(--white); box-shadow: var(--sh-green); margin-bottom: 18px; }
+.confirmed > .ic { width: 48px; height: 48px; flex: none; }
+.confirmed h2 { margin: 0 0 4px; }
+.confirmed p { margin: 0; color: var(--white); }
+.letter { position: relative; background: #FFFDF6; border-radius: 18px; padding: 22px 20px; box-shadow: var(--sh-2), inset 0 0 0 1px #F1D28F; margin-bottom: 14px; font-size: var(--fs-md); }
+.letter .eyebrow { padding-right: 80px; }
+.letter .letter-pip { position: absolute; right: 10px; top: 8px; width: 72px; height: 72px; }
+.letter .sign { font-family: var(--font-h); font-weight: 800; color: var(--green); margin-top: 12px; }
+.code-card.pending > .ic { width: 40px; height: 40px; color: var(--ink); }
+.code-card.pending { border-top-color: var(--sun); }

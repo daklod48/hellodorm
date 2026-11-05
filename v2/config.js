@@ -16,4 +16,9 @@ export const MANAGER_EMAILS = ['manager1@hellodorm-demo.test', 'manager2@example
 // EDIT: ntfy.sh topic for phone alerts. Managers subscribe to this name in the free ntfy app.
 export const NTFY_TOPIC = 'hellodorm-1qdfw8sunx3i6wmo1jm141mjj4dw';
 
+// EDIT (optional): Stripe Payment Link in TEST mode, for "Pay by card". Looks like https://buy.stripe.com/test_...
+// Empty = the card option shows as "not set up yet" and only Demo pay works. Card details are typed on Stripe's page only;
+// this app never sees or stores them. Setup steps: HOW-IT-WORKS.md section 13.
+export const STRIPE_PAYMENT_LINK = '';
+
 export const APP_VERSION = 'v2';
