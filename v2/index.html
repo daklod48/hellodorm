@@ -30,7 +30,8 @@
   --blue: #1D4E89;
   --blue-l: #E2ECF8;
   --white: #FFFFFF;
-  --line: #CFE3D8;
+  --line: #CFE3D8;         
+  --field: #5E8C76;        
   --on-dark: #DDF1E6;      
   --green-10: rgba(23, 117, 74, .10);
   --green-20: rgba(23, 117, 74, .20);
@@ -42,6 +43,7 @@
   --grad-ink: linear-gradient(160deg, #0F4D3A 0%, #0B3D2E 60%, #082E22 100%);
   --grad-sun: linear-gradient(135deg, #FDE7B0 0%, #F4B740 100%);
   --grad-mint: linear-gradient(180deg, #F3FAF6 0%, #E8F5EE 100%);
+  --fs-min: .75rem; 
   --fs-xs: .75rem; --fs-sm: .875rem; --fs-md: 1rem; --fs-lg: 1.125rem; --fs-xl: 1.375rem;
   --fs-2xl: 1.75rem; --fs-3xl: 2.25rem; --fs-4xl: clamp(2.4rem, 6vw, 3.6rem);
   --font-h: 'Nunito', 'Nunito Fallback', system-ui, sans-serif;
@@ -64,7 +66,8 @@
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; font-family: var(--font-b); color: var(--ink); background: var(--mint); font-size: var(--fs-md); line-height: var(--lh-body); overflow-x: hidden; }
-h1, h2, h3 { font-family: var(--font-h); line-height: var(--lh-tight); margin: 0 0 .4em; font-weight: 800; letter-spacing: -.01em; }
+h1, h2, h3 { font-family: var(--font-h); line-height: var(--lh-tight); margin: 0 0 .4em; font-weight: 800; letter-spacing: -.01em; text-wrap: balance; }
+p, li { text-wrap: pretty; } 
 h2 { font-size: var(--fs-xl); } h3 { font-size: var(--fs-lg); }
 p { margin: 0 0 .6em; }
 a { color: var(--green); }
@@ -128,7 +131,7 @@ img { max-width: 100%; display: block; }
 .pill.grey { background: var(--grey-l); color: var(--grey); }
 .pill.blue { background: var(--blue-l); color: var(--blue); }
 .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 8px; font-size: .74rem; font-weight: 600; background: var(--grey-l); color: var(--ink); }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 8px; font-size: var(--fs-min); font-weight: 600; background: var(--grey-l); color: var(--ink); }
 .badge .ic { width: 14px; height: 14px; }
 .badge.clean { background: var(--mint-2); color: var(--ink); }
 .badge.cond { background: var(--sun-l); color: var(--ink); }
@@ -213,7 +216,7 @@ img { max-width: 100%; display: block; }
 .auth { max-width: 440px; margin: 0 auto; padding: 16px 8px 40px; }
 .auth h1 { font-size: var(--fs-3xl); margin-top: 12px; letter-spacing: -.02em; }
 #langwrap { position: fixed; top: 8px; right: 12px; z-index: 40; }
-.langbtn { display: inline-flex; align-items: center; justify-content: center; gap: 3px; width: 44px; height: 44px; padding: 0; border-radius: var(--r-pill); border: 1px solid rgba(23, 117, 74, .18); background: var(--glass-strong); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); color: var(--green); font-weight: 800; font-size: .72rem; cursor: pointer; box-shadow: var(--sh-1); transition: transform var(--t-fast) var(--spring), box-shadow var(--t-base); }
+.langbtn { display: inline-flex; align-items: center; justify-content: center; gap: 3px; width: 46px; height: 46px; padding: 0; border-radius: var(--r-pill); border: 1px solid rgba(23, 117, 74, .18); background: var(--glass-strong); backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur)); color: var(--green); font-weight: 800; font-size: var(--fs-min); cursor: pointer; box-shadow: var(--sh-1); transition: transform var(--t-fast) var(--spring), box-shadow var(--t-base); }
 .langbtn:hover { box-shadow: var(--sh-2); }
 .langbtn:active { transform: scale(.92); }
 .langbtn .ic { width: 16px; height: 16px; }

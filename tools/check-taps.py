@@ -4,8 +4,9 @@ Run: python tools/check-taps.py [base url]"""
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
 from playwright.sync_api import sync_playwright
+from browser import launch, prepare  # tools/browser.py: installed Chrome by default, HD_FAKE=1 for no database writes
 
-BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080/v1/"
+BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080/v2/"
 JS = r"""
 () => {
   const out = [];
@@ -27,8 +28,8 @@ JS = r"""
 SCREENS = ["welcome", "signin", "signup", "about", "home", "browse", "item/k1", "saved", "cart", "stands/list", "stands/map", "waitlist", "profile", "myitems", "orders", "notes"]
 fails = 0
 with sync_playwright() as pw:
-    b = pw.chromium.launch(channel="chrome", headless=True)
-    ctx = b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    b = launch(pw)
+    ctx = prepare(b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True))
     p = ctx.new_page(); p.goto(BASE); p.wait_for_selector("html[data-app=ready]", timeout=20000); p.wait_for_timeout(400)
     def run(label):
         global fails

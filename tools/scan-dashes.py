@@ -1,9 +1,11 @@
-"""Scan user-facing strings in v1/texts.js and v1/data/*.js for dash characters (hyphen, en dash, em dash).
+"""Scan user-facing strings in <version>/texts.js and <version>/data/*.js for dash characters (hyphen, en dash, em dash).
 Prints one line per hit and a final count. Run: python tools/scan-dashes.py  (the last line must be 0)."""
 import re, sys, pathlib
 sys.stdout.reconfigure(encoding='utf-8')
 
-root = pathlib.Path(__file__).resolve().parent.parent / 'v1'
+# Which app folder to work on: python tools/<script>.py v2 (default v2; v1 is frozen).
+VER = next((a for a in sys.argv[1:] if re.fullmatch(r'v\d+', a)), 'v2')
+root = pathlib.Path(__file__).resolve().parent.parent / VER
 files = [root / 'texts.js'] + sorted((root / 'data').glob('*.js'))
 DASH = re.compile('[\\-–—]')
 # User-facing fields: en/cs values in texts and data, plus dorm names, addresses and universities.

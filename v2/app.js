@@ -1,4 +1,4 @@
-// HelloDorm v1. Plain JavaScript, no build step.
+// HelloDorm v2 (copy of v1 plus the 2026-11-05 mobile and accessibility pass). Plain JavaScript, no build step.
 // Firebase JS SDK 12.19.0 (modular), loaded from Google's CDN.
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 import {
@@ -485,18 +485,23 @@ function heartBtn(id, big = false) {
   const on = isHeart(id);
   return `<button class="heart ${on ? 'on' : ''} ${big ? 'big' : ''}" data-act="heart" data-id="${id}" aria-pressed="${on}">${ic('heart')}<span>${on ? t('saved') : t('save')}</span></button>`;
 }
+// v2: on cards the heart is a round icon button on the photo. Its visible word moved into aria-label, so screen readers still say "Save" or "Saved".
+function heartIcon(id) {
+  const on = isHeart(id);
+  return `<button class="heart-ic ${on ? 'on' : ''}" data-act="heart" data-id="${id}" aria-pressed="${on}" aria-label="${on ? t('saved') : t('save')}">${ic('heart')}</button>`;
+}
 function card(it) {
   const st = shopState(it.id);
   const d = dormById(it.dorm);
   const flag = st === 'free' ? '' : `<span class="chip over">${ic(st === 'sold' || st === 'mine-sold' ? 'ban' : 'clock')}${t(st === 'mine' ? 'reserved_you' : st.includes('sold') ? 'sold' : 'reserved')}</span>`;
   return `<article class="card ${st !== 'free' && st !== 'mine' ? 'dim' : ''}">
-    <a href="#/item/${it.id}" class="ph">${photo(it)}<span class="chip price">${czk(it.price)}</span>${flag}</a>
+    <a href="#/item/${it.id}" class="ph">${photo(it)}<span class="chip price">${czk(it.price)}</span>${flag}</a>${heartIcon(it.id)}
     <div class="cb">
       <div class="badges"><span class="badge cond">${ic('star')}${t('cond_' + it.cond)}</span><span class="badge clean">${ic('sparkles')}<span class="long">${t('cleaned')}</span><span class="short">${t('cleaned_short')}</span></span></div>
       <h3><a href="#/item/${it.id}">${esc(L(it.title))}</a></h3>
-      <p class="meta">${ic('store')}<span>${t('stand_of', { d: d.short })}${distShort(it.dorm) ? ' · ' + distShort(it.dorm) : ''}</span></p>
+      <p class="meta" title="${esc(t('stand_of', { d: d.short }))}">${ic('store')}<span><span class="sr">${t('stand_of', { d: d.short })}</span><span aria-hidden="true">${d.short}</span>${distShort(it.dorm) ? ' · ' + distShort(it.dorm) : ''}</span></p>
       <p class="meta small"><span>${t('new_was', { p: czk(it.newPrice) })} · ${fmtAgo(it.listedMin * MIN + (Date.now() - PAGE_OPENED))}</span></p>
-      <div class="card-actions">${heartBtn(it.id)}${st === 'free' ? cartBtn(it.id) : ''}</div>
+      ${st === 'free' ? `<div class="card-actions">${cartBtn(it.id)}</div>` : ''}
     </div>
   </article>`;
 }

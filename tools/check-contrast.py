@@ -5,8 +5,9 @@ Run: python tools/check-contrast.py [base url] [manager password]"""
 import sys, os
 sys.stdout.reconfigure(encoding='utf-8')
 from playwright.sync_api import sync_playwright
+from browser import launch, prepare  # tools/browser.py: installed Chrome by default, HD_FAKE=1 for no database writes
 
-BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080/v1/"
+BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080/v2/"
 MGR_PW = sys.argv[2] if len(sys.argv) > 2 else os.environ.get("HD_MGR_PW", "")
 
 JS = r"""
@@ -62,9 +63,9 @@ SCREENS_GUEST = ["onboarding", "welcome", "signin", "signup", "about", "home", "
 SCREENS_DEMO = ["home", "myitems", "notes", "orders", "cart", "sell", "profile", "bank"]
 fails = 0
 with sync_playwright() as pw:
-    b = pw.chromium.launch(channel="chrome", headless=True)
+    b = launch(pw)
     for w, h, mobile in ((390, 844, True), (1280, 800, False)):
-        ctx = b.new_context(viewport={"width": w, "height": h}, is_mobile=mobile, has_touch=mobile)
+        ctx = prepare(b.new_context(viewport={"width": w, "height": h}, is_mobile=mobile, has_touch=mobile))
         p = ctx.new_page(); p.goto(BASE); p.wait_for_selector("html[data-app=ready]", timeout=20000); p.wait_for_timeout(400)
         def run(label):
             bad = p.evaluate(JS)
