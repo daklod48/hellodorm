@@ -1371,13 +1371,16 @@ SCREENS.stands = (view) => {
   const list = [...DORMS].sort((a, b) => (base ? distanceM(base, a) - distanceM(base, b) : a.name.localeCompare(b.name)));
   const lat = DORMS.map((d) => d.lat), lon = DORMS.map((d) => d.lon);
   const [la0, la1, lo0, lo1] = [Math.min(...lat) - 0.008, Math.max(...lat) + 0.008, Math.min(...lon) - 0.012, Math.max(...lon) + 0.012];
-  const W = 800, H = Math.round(W * ((la1 - la0) / ((lo1 - lo0) * Math.cos(50.08 * Math.PI / 180))));
+  // v2: on a phone the map is drawn about as wide as the screen, so 1 map unit is about 1 pixel and the 12 px pin numbers stay readable
+  // (v1 drew it 800 wide and shrank it to 45 %, which made the numbers about 5 px).
+  const phone = window.matchMedia('(max-width: 599px)').matches;
+  const W = phone ? 360 : 800, HIT = phone ? 24 : 54, H = Math.round(W * ((la1 - la0) / ((lo1 - lo0) * Math.cos(50.08 * Math.PI / 180))));
   const xy = (p) => [((p.lon - lo0) / (lo1 - lo0)) * W, ((la1 - p.lat) / (la1 - la0)) * H];
   const count = (id) => availableItems().filter((i) => i.dorm === id).length;
   const map = `<svg class="map" viewBox="0 0 ${W} ${H}" role="img" aria-label="${t('map_aria')}">
     <rect width="${W}" height="${H}" rx="16" class="map-bg"/>
     <path class="river" d="${RIVER.map((p, i) => (i ? 'L' : 'M') + xy(p).map((v) => v.toFixed(0)).join(' ')).join(' ')}"/>
-    ${DORMS.map((d) => { const [x, y] = xy(d); const me = d.id === S.prof.dorm; return `<g class="pin ${me ? 'me' : ''}" data-act="stand-pin" data-id="${d.id}" tabindex="0" role="button" aria-label="${esc(d.name)}"><circle class="hit" cx="${x}" cy="${y}" r="54"/><circle cx="${x}" cy="${y}" r="${me ? 15 : 12}"/><text x="${x}" y="${y + 4}" text-anchor="middle" class="pin-n">${count(d.id)}</text><text x="${x + 18}" y="${y + 5}" class="pin-l">${esc(d.short)}</text></g>`; }).join('')}
+    ${DORMS.map((d) => { const [x, y] = xy(d); const me = d.id === S.prof.dorm; return `<g class="pin ${me ? 'me' : ''}" data-act="stand-pin" data-id="${d.id}" tabindex="0" role="button" aria-label="${esc(d.name)}"><circle class="hit" cx="${x}" cy="${y}" r="${HIT}"/><circle cx="${x}" cy="${y}" r="${me ? 15 : 12}"/><text x="${x}" y="${y + 4}" text-anchor="middle" class="pin-n">${count(d.id)}</text><text x="${x + 18}" y="${y + 5}" class="pin-l">${esc(d.short)}</text></g>`; }).join('')}
     ${S.pos ? (() => { const [x, y] = xy(S.pos); return `<g class="you"><circle cx="${x}" cy="${y}" r="7"/><text x="${x + 12}" y="${y + 18}" class="pin-l">${t('you_are_here')}</text></g>`; })() : ''}
   </svg>`;
   return {
