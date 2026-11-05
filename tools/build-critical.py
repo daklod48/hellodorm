@@ -1,10 +1,12 @@
-"""Rebuild the inline critical CSS block in v1/index.html from v1/styles.css.
+"""Rebuild the inline critical CSS block in <version>/index.html from <version>/styles.css.
 It copies sections 1, 2, 3, 5 and 7 (tokens, base, background, buttons, onboarding and welcome), the language button
 rules, and the Pip pose, tick, splash and hidden rules, so the first screen can be drawn before styles.css arrives.
 Run after changing styles.css:  python tools/build-critical.py"""
-import re, pathlib
+import re, sys, pathlib
 
-root = pathlib.Path(__file__).resolve().parent.parent / 'v1'
+# Which app folder to work on: python tools/<script>.py v2 (default v2; v1 is frozen).
+VER = next((a for a in sys.argv[1:] if re.fullmatch(r'v\d+', a)), 'v2')
+root = pathlib.Path(__file__).resolve().parent.parent / VER
 css = (root / 'styles.css').read_text(encoding='utf-8')
 parts = re.split(r'(?=/\* =+ \d+\. )', css)
 want = {'1.', '2.', '3.', '5.', '7.'}
