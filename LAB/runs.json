@@ -1,0 +1,39 @@
+[
+ {
+  "run": 0,
+  "date": "2026-11-05",
+  "verdict": "baseline",
+  "changes": [
+   "Baseline: HelloDorm v2 after round 4 (accounts with demo account, Stripe test card or Demo pay, success letter)."
+  ],
+  "innovation": "",
+  "references": [],
+  "scores": {
+   "first_impression_beauty": 7,
+   "clarity_of_main_task": 6,
+   "flow_without_dead_ends": 8,
+   "trust_and_credibility": 8,
+   "mobile_quality": 7,
+   "speed": 8,
+   "accessibility": 8,
+   "delight_or_innovation": 7
+  },
+  "total": 59,
+  "top_3_flaws": [
+   "Home first view: too many competing actions (Choose your dorm, account card, Sell or donate) and no item or buy action above the phone fold.",
+   "Checkout: disabled Pay by card shows internal team text, and the pale Pay button sits below the phone fold.",
+   "Clutter: some item cards have no photo (plain tiles), the phone Home is very long, the laptop About is half credits."
+  ],
+  "size_bytes": 375967,
+  "size_change_pct": null,
+  "ready_seconds": 0.403,
+  "tests": "contrast 0, taps 0, readable 0, dashes 0 failures; flow reached checkout and success at 390 and 1440; 0 page errors",
+  "scorer": "independent subagent (fresh, saw only RUBRIC.md, captures and metrics.json)",
+  "preview": "https://daklod48.github.io/hellodorm/ (round 3 version still live; round 4 publishes with the first kept run)",
+  "tools": [
+   "Playwright with headless Chromium (captures)",
+   "tools/fake-firebase stand-in database (no real data written)",
+   "independent scorer subagent"
+  ]
+ }
+]
