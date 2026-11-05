@@ -33,7 +33,10 @@ with sync_playwright() as pw:
     p = ctx.new_page(); p.goto(BASE); p.wait_for_selector("html[data-app=ready]", timeout=20000); p.wait_for_timeout(400)
     def run(label):
         global fails
-        for x in p.evaluate(JS):
+        found = p.evaluate(JS)
+        if found:  # measured mid animation (press spring, entrance)? measure again at rest and keep only what persists
+            p.wait_for_timeout(600); found = p.evaluate(JS)
+        for x in found:
             fails += 1; print(f"FAIL {label}: <{x['tag']} .{x['cls']}> '{x['text']}' {x['w']}x{x['h']}")
     run("onboarding"); p.goto(BASE + "#/welcome"); p.wait_for_timeout(300); run("welcome")
     p.click(".langbtn", force=True); p.wait_for_timeout(300); run("language menu"); p.click("body", position={"x": 5, "y": 400})

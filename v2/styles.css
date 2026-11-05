@@ -908,3 +908,5 @@ body.modal-open { position: fixed; left: 0; right: 0; overflow: hidden; width: 1
 .scale input:checked + span, .choice input:checked + span { background: var(--green); border-color: var(--green); color: var(--white); animation: picked .32s var(--spring); }
 .scale input:focus-visible + span, .choice input:focus-visible + span { outline: 3px solid var(--sun); outline-offset: 2px; }
 .scale-ends { display: flex; justify-content: space-between; font-size: var(--fs-min); color: var(--grey); margin: 4px 2px 0; }
+/* v2: buttons that sat exactly on the 44 px limit measured a fraction under it during animations; 46 px keeps a margin. */
+.cartbtn, .heart, .cat-chip, .chip-btn, .tabs button, .dorm-line, .faq summary, .lang-menu button, .pip-btn { min-height: 46px; }
