@@ -777,7 +777,7 @@ body.modal-open { position: fixed; left: 0; right: 0; overflow: hidden; width: 1
 
 /* ===================== 19. v2 mobile and accessibility pass (2026-11-05) ===================== */
 /* Item card: heart as a 44 px round button on the photo, one-line stand, one full-width cart button.
-   Saves about 110 px per card row on a 390 px phone. */
+   Measured on a 390 px phone: a row of two cards is 397 px instead of 440 px. */
 .card { position: relative; }
 .chip.over { right: auto; left: 8px; }
 .heart-ic { position: absolute; top: 8px; right: 8px; z-index: 2; display: grid; place-items: center; width: 46px; height: 46px; padding: 0; border: 0; border-radius: var(--r-pill);

@@ -2,6 +2,8 @@
 
 Live link (v1, no login needed): https://daklod48.github.io/hellodorm/v1/
 
+v2 (design and accessibility pass of 5 November 2026, see `HOW-IT-WORKS.md` section 10) goes live at https://daklod48.github.io/hellodorm/v2/ only once its pull request is merged into `main`. Merging does not change v1.
+
 Team 5, 3BE314 Entrepreneurship, Assignment 2. Clickable prototype: students sell or donate dorm items at a HelloDorm stand, others buy them cleaned. Built 2026-10-20 with Claude Code from `SPEC.md`, `design-brief.md` and `prague-dorms.md`; design pass the same evening (see `DESIGN-NOTES.md`).
 
 ## Folders
@@ -10,8 +12,9 @@ Team 5, 3BE314 Entrepreneurship, Assignment 2. Clickable prototype: students sel
   - `data/items.js` (30 sample shop items), `data/dorms.js` (16 dorms and stand hours), `data/prices.js` (categories, including Other, and the standard offer table).
   - `img/*.webp` (item photos from Unsplash, 600 x 600, `credits.json` lists photographer and page), `img/dorms/*.webp` (home header backdrops: Wikimedia Commons photos with `credits-dorms.json`, plus three Gemini illustrations), `img/pip/*.webp` (Pip poses, Gemini).
   - `*.old` files are the versions before the design pass (kept, never deleted).
+- `v2/`: copy of `v1/` made on 5 November 2026, with the phone layout and accessibility changes. Same file names as `v1/`. Edit this one; `v1/` stays frozen.
 - `firestore.rules`: Firestore security rules. Paste into the Firebase console after every change (the current file adds the `dormName` field for "Ask for a stand" and must be republished).
-- `tools/`: checks and build helpers. `scan-dashes.py` (no dashes in visible texts), `check-contrast.py` (every text pair 4.5:1 or more, runtime, both widths), `check-taps.py` (every tap target 44 px at 390 px), `build-critical.py` (copies the first screen's styles into `index.html`; run it after editing `styles.css`).
+- `tools/`: checks and build helpers. `scan-dashes.py` (no dashes in visible texts), `check-contrast.py` (every text pair 4.5:1 or more, runtime, both widths), `check-taps.py` (every tap target 44 px at 390 px), `build-critical.py v2` (copies the first screen's styles into `index.html`; run it after editing `styles.css`), `scan-emails.py` (no real email in config files), `check-readable.py` (text 12 px or more, text box outlines 3:1 or more), `browser.py` and `fake-firebase/` (shared test setup; `HD_FAKE=1` runs the checks without touching the real database).
 - `review/`: screenshots. `before/` (first build), `part1/` (after the owner's functional feedback), `after/` (after the design pass).
 - `DESIGN-NOTES.md`: what was studied and borrowed, plus measured results. `IMAGE-PROMPTS.md`: every Gemini prompt. `AI-LOG.md`: corrections during the build. `HOW-IT-WORKS.md`: the whole app explained for a reader with no programming background (files, data flow, accounts, rules, deadlines, how to change things, costs).
 
@@ -24,9 +27,12 @@ The app uses JavaScript modules, so it must be opened through a small local web 
 
 ## How to run the checks
 With the local server running and Playwright for Python installed (`pip install playwright`; it drives the installed Chrome):
-- `python tools/scan-dashes.py` (must end with `0`)
-- `python tools/check-contrast.py http://localhost:8080/v1/ <manager password>` (must end with `0`)
+- `python tools/scan-dashes.py v2` (must end with `0`)
+- `python tools/scan-emails.py` (must end with `0`)
+- `python tools/check-contrast.py http://localhost:8080/v2/ <manager password>` (must end with `0`)
 - `python tools/check-taps.py` (must end with `0`)
+- `python tools/check-readable.py` (must end with `0`)
+- To check only the look without creating test accounts or adding to the counters, run `set HD_FAKE=1` first (details in `HOW-IT-WORKS.md` section 11).
 Lighthouse: run `lighthouse http://localhost:8080/v1/ --preset=mobile` with Node installed, or Chrome DevTools > Lighthouse > Mobile.
 
 ## How to change the managers

@@ -1,6 +1,8 @@
 # How HelloDorm works, explained for a smart reader with no programming background
 
-_Written 20 October 2026 for HelloDorm v1. Plain words. Every technical term is explained the first time it appears._
+_Written 20 October 2026 for HelloDorm v1; updated 5 November 2026 for v2 (sections 2, 7, 8, 10 and 11). Plain words. Every technical term is explained the first time it appears._
+
+**Two versions side by side.** `v1/` is the published first link and is frozen: nobody edits it again. `v2/` started on 5 November 2026 as an exact copy of `v1/` and carries the design and accessibility pass described in section 10. Both use the same Firebase project. Wherever this document says `v1/`, the same file exists in `v2/`.
 
 ## 1. The big picture
 
@@ -58,7 +60,10 @@ Hosting: the `v1/` files sit on **GitHub Pages**, a free service that serves sta
 | `v1/img/` | Pictures | Item photos (WebP, with credits in `credits.json`), dorm backdrops (`dorms/`), Pip poses (`pip/`). |
 | `v1/fonts/` | Fonts | Inter and Nunito, copied here so the first screen does not wait for Google's servers. |
 | `firestore.rules` | Security rules | Who may read or write what in the database. Pasted into the Firebase console. |
-| `tools/` | Checks | Small scripts that scan for dashes, measure text contrast, and measure tap target sizes. |
+| `v2/` | Second version | A copy of `v1/` with the 5 November 2026 changes (section 10). Same files, same names. |
+| `tools/` | Checks | Small scripts that scan for dashes and real emails, measure text contrast, tap target sizes, text sizes and field outlines (section 11). |
+| `tools/browser.py` | Shared test setup | Opens the test browser for every check; can swap in the stand-in database (section 11). |
+| `tools/fake-firebase/` | Stand-in database, tests only | Three small files that imitate Firebase inside the test browser so checks can open demo and manager screens without writing to the real database. The live site never loads them. |
 
 Files ending in `.old` are the versions before the design pass. They are kept, not used.
 
@@ -130,9 +135,9 @@ There is no server waking up at night, so time based rules run inside the app wh
 - **Dorms and stands**: `v1/data/dorms.js`. Name, address, coordinates, `full: true` to show a full stand, and `STAND_HOURS` for opening times. A backdrop picture goes into `v1/img/dorms/<id>.webp` with a line in `credits-dorms.json`.
 - **Texts**: `v1/texts.js`. Each key has `en` and `cs`. Placeholders in braces are filled by the app; `{n|item|items}` picks the plural. Run `python tools/scan-dashes.py` afterwards; it must print 0.
 - **Items**: `v1/data/items.js` plus a 600 by 600 WebP in `v1/img/` and a credit line in `credits.json`.
-- **Look**: the tokens at the top of `v1/styles.css`. After editing styles, run `python tools/build-critical.py` so the copy inside `index.html` matches.
+- **Look**: the tokens at the top of `v2/styles.css` (v1 is frozen). After editing styles, run `python tools/build-critical.py v2` so the copy inside `index.html` matches. Two v2 tokens guard accessibility: `--fs-min` (12 px, the smallest text allowed) and `--field` (the outline colour of text boxes, 3.9:1 on white). Do not go below either.
 
-## 8. How to make v2 from v1
+## 8. How to make v2 from v1 (done on 5 November 2026; the same steps make v3 from v2)
 
 1. Copy the whole `v1/` folder to `v2/`. Do not touch `v1/` again; it is the frozen first link.
 2. In `v2/`, change what the tests asked for. Both folders share the same Firebase project and database, so a user signed in on v1 is signed in on v2 too.
@@ -146,3 +151,44 @@ There is no server waking up at night, so time based rules run inside the app wh
 - **ntfy.sh**: free public topics; the only cost is that the topic name is visible in the code, so a stranger could post a fake alert. Change the topic name if that happens.
 - **Fonts, icons, photos**: Inter and Nunito (SIL Open Font License), Lucide icons (ISC licence), Unsplash photos (Unsplash licence), Wikimedia Commons photos (CC BY or CC BY-SA, credited in About), Gemini illustrations (listed in About and `IMAGE-PROMPTS.md`). All free to use here.
 - **Domain**: the `github.io` address is free. A custom domain would cost roughly 300 to 400 CZK a year and is not needed for the course.
+
+## 10. The v2 design and accessibility pass (5 November 2026)
+
+**Benchmark.** In October the team studied Prism, Too Good To Go, Olio, Vinted, Back Market and Ecosia (`DESIGN-NOTES.md`). From Vinted it borrowed the item card: "square photo, price chip, two line meta". Measured on a 390 px phone (the width of a typical iPhone, and the width SPEC.md section 10 names), v1 had drifted from its own benchmark: four lines of meta text and two stacked buttons under every photo. v2 brings the phone layout back to that benchmark. The outside reference pages could not be opened again on 5 November (the build machine's network blocks those sites), so no new outside source is cited for this pass; the numbers below were measured on the app itself.
+
+Each change, why, and the number behind it:
+
+1. **A floor for text size: nothing under 12 px.** In v1 the words under the top bar icons ("Help", "Cart", "Inbox") were 9.3 px and the condition badges 11.2 px. A pixel here is a **CSS pixel**: the browser's unit of length, about 1/96 of an inch at arm's length on any screen, so 12 px looks the same size on a phone and a laptop. The token `--fs-min` (12 px) now sets every small label.
+2. **Text boxes have a visible outline.** WCAG, the international accessibility standard (Web Content Accessibility Guidelines), has two contrast rules. The one HelloDorm already checked (1.4.3) says text needs 4.5:1 against its background. A second one (1.4.11, **non-text contrast**) says the edge of a control people must find, such as the outline of a text box, needs 3:1. v1's text box outline (`#9DBFAE`) was 2.0:1 against white, so on a bright screen the box could disappear. v2 uses `--field` `#5E8C76`: 3.9:1 on white and 3.4:1 on mint.
+3. **Compact item card.** The Save heart is now a round 46 px button on the photo, the stand line is short ("Thalerova · in your dorm", the shop icon already says "stand"), and "Add to cart" is one full width button. Measured on a 390 px phone, one row of two cards went from 440 px to 397 px (card plus gap), about 10 % shorter, with fewer buttons competing for the thumb. The heart's word did not disappear: it moved into an **aria-label**, a hidden name that screen readers (software that reads the screen aloud for blind users) announce, so they still hear "Save" or "Saved".
+4. **Filters side by side.** On a phone, Condition and Price sit next to each other, each with its word above the choice, instead of taking a full row each.
+5. **Sticky action bar on the item page.** In v1 "Reserve now" started 1,008 px down the item page on a 390 x 844 px phone (1.19 screens), so it was not visible without scrolling. In v2 it is visible on the first screen and stays visible. In v2 the actions are **sticky**: a CSS setting that lets a box scroll normally until it reaches an edge of the screen and then stay there. The bar holds Save (as an icon), Reserve now and Add to cart, and rides just above the tab bar until the end of the item section. On a laptop nothing changed, because the button is already visible there.
+6. **Works at 320 px, in Czech too.** WCAG's **reflow** rule (1.4.10) asks that a page still works at 320 px wide with no sideways scrolling. Czech words are longer, so below 380 px the small explanation lines inside the bar ("Pay later") are hidden and only the button words stay. Measured: 0 px sideways overflow at 320 and 390 px in both languages.
+7. **No automatic hyphens.** Browsers can split long words with a hyphen (`hyphens: auto`). That would put dashes into visible text, which the owner ruled out (`AI-LOG.md`, 20 October), so v2 forbids it and `scan-dashes.py` now fails if it appears.
+8. **Readable stand map on phones.** The map is a drawing whose size is set in its own units. v1 drew it 800 units wide and the phone shrank it to about 45 %, so the 11 unit pin numbers showed at about 5 px. v2 draws it 360 units wide on phones (1 unit is about 1 px), with 12 px numbers and 48 px tap circles. On a laptop it is unchanged.
+9. **Nicer line breaks.** Headings use `text-wrap: balance` (lines of similar length) and paragraphs `text-wrap: pretty` (no single word alone on the last line). Browsers that do not know these settings simply ignore them.
+
+What did not change: colours, fonts, motion, Pip, every screen's content and every rule in sections 3 to 6.
+
+## 11. The checks, and how to run them without touching the real database
+
+Run the local server first (`python -m http.server 8080` in the `hellodorm` folder). Each script prints problems, then a count on the last line, which must be `0`.
+
+| Script | What it proves | v2 result, 5 Nov 2026 |
+|---|---|---|
+| `python tools/scan-dashes.py v2` | No dash in any visible text, and no automatic hyphens | 0 |
+| `python tools/scan-emails.py` | No real looking email address in `config.js`, `firestore.rules` or `firebase-config.txt`. Allowed are only names reserved for examples by internet standards (RFC 2606 and RFC 6761): `example.com`, `example.org`, `example.net`, and anything ending `.test`, `.example` or `.invalid`. Those can never reach a real person. | 0 |
+| `python tools/check-contrast.py` | Every text 4.5:1 or more, at 390 and 1280 px | 0 |
+| `python tools/check-taps.py` | Every button and link at least 44 x 44 px on a phone | 0 |
+| `python tools/check-readable.py` | Every text 12 px or more, every text box outline 3:1 or more, on a phone | 0 (v1: 111) |
+
+**The stand-in database.** The checks open the demo account and Manager mode. Against the real Firebase project that creates test accounts and adds to the visit and tap counters, which are the demand test numbers for the assignment. Setting `HD_FAKE=1` before a check swaps Firebase for the three small files in `tools/fake-firebase/`, inside the test browser only: they keep the data in the test browser's memory and nothing leaves the machine. Use it whenever you only want to check the look:
+
+```
+set HD_FAKE=1
+python tools/check-readable.py
+```
+
+(On Mac or Linux write `HD_FAKE=1 python tools/check-readable.py`.) Without `HD_FAKE`, the checks behave exactly as before and use the real database, which is still the right final test of sign up and sync. `HD_CHROME=<path>` points the checks at a different Chrome program if the installed Chrome is not found.
+
+**What was not measured on 5 November.** Lighthouse (Google's speed and quality score) was not run for v2: the build machine could not load Firebase from Google's servers, so a speed score from there would not be comparable with the October numbers. v2 adds no images, fonts or libraries and about 4 KB of styles, so the October scores should hold; run Lighthouse on v2 once before publishing it.
