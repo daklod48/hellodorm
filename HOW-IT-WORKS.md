@@ -1,6 +1,6 @@
 # How HelloDorm works, explained for a smart reader with no programming background
 
-_Written 20 October 2026 for HelloDorm v1; updated 5 November 2026 for v2 (sections 2, 7, 8, 10 and 11). Plain words. Every technical term is explained the first time it appears._
+_Written 20 October 2026 for HelloDorm v1; updated 5 November 2026 for v2 (sections 2, 4, 7, 8, 10, 11 and 12). Plain words. Every technical term is explained the first time it appears._
 
 **Two versions side by side.** `v1/` is the published first link and is frozen: nobody edits it again. `v2/` started on 5 November 2026 as an exact copy of `v1/` and carries the design and accessibility pass described in section 10. Both use the same Firebase project. Wherever this document says `v1/`, the same file exists in `v2/`.
 
@@ -60,7 +60,8 @@ Hosting: the `v1/` files sit on **GitHub Pages**, a free service that serves sta
 | `v1/img/` | Pictures | Item photos (WebP, with credits in `credits.json`), dorm backdrops (`dorms/`), Pip poses (`pip/`). |
 | `v1/fonts/` | Fonts | Inter and Nunito, copied here so the first screen does not wait for Google's servers. |
 | `firestore.rules` | Security rules | Who may read or write what in the database. Pasted into the Firebase console. |
-| `v2/` | Second version | A copy of `v1/` with the 5 November 2026 changes (section 10). Same files, same names. |
+| `index.html` (top level) | The public link | Forwards https://daklod48.github.io/hellodorm/ to the newest version (`v2/`), keeping any `?dorm=` from an invite link. To point it at v3 later, change `v2/` in that file. |
+| `v2/` | Second version | A copy of `v1/` with the 5 November 2026 changes (sections 10 and 12). Same files, same names. |
 | `tools/` | Checks | Small scripts that scan for dashes and real emails, measure text contrast, tap target sizes, text sizes and field outlines (section 11). |
 | `tools/browser.py` | Shared test setup | Opens the test browser for every check; can swap in the stand-in database (section 11). |
 | `tools/fake-firebase/` | Stand-in database, tests only | Three small files that imitate Firebase inside the test browser so checks can open demo and manager screens without writing to the real database. The live site never loads them. |
@@ -101,7 +102,8 @@ Step by step:
 
 - **Sign up** creates an account in Firebase Authentication (email and password; Firebase stores the password in scrambled form, we never see it) and a user document in Firestore with the name, dorm, language, saved items, cart, filters, last tab, bank form and draft. Everything the user chooses later is written into that one document, so on another device, after sign in, the app reads it and continues where they left off.
 - **Sign in** on a second device: Firebase checks the password and gives the app a **token**, a signed pass that proves who the user is. Every read or write to Firestore carries that token, and the rules compare it with the document being touched.
-- **Try as guest** needs no account. The app keeps the guest's choices (dorm, hearts, cart, filters) in the browser's own storage, a notebook that stays on that one device. When the guest signs up, those choices are copied into the new account.
+- **Guest (v2: everybody who is not signed in).** In v2 there is no welcome wall: the link opens Home and the visitor is a guest at once. A guest can browse, choose a dorm, fill a cart and check out to a demo pickup code. The guest's orders are kept in the browser's own storage only (section 12). Sign in and sign up stay available and optional.
+- **Try as guest** (v1 wording) needs no account. The app keeps the guest's choices (dorm, hearts, cart, filters) in the browser's own storage, a notebook that stays on that one device. When the guest signs up, those choices are copied into the new account.
 - **Demo account** uses Firebase **anonymous sign in**: a real account with no email or password. The first time it is created, the app writes a ready made history into it (an item being examined, an offer waiting, a rejected item, a donation, a reservation with a pickup code, saved items, a cart, bank details, two inbox notes). The same browser keeps the same demo account until the person signs out; a sign out makes it unreachable (no password exists), so the next tap on Demo creates a fresh copy. Every tester therefore gets their own private copy and nobody's clicks collide.
 - **Remembered on every device** works because nothing important is stored on the device itself for signed in users; it is all in the user document and its three collections, and the listeners bring it to any device within a second.
 
@@ -192,3 +194,31 @@ python tools/check-readable.py
 (On Mac or Linux write `HD_FAKE=1 python tools/check-readable.py`.) Without `HD_FAKE`, the checks behave exactly as before and use the real database, which is still the right final test of sign up and sync. `HD_CHROME=<path>` points the checks at a different Chrome program if the installed Chrome is not found.
 
 **What was not measured on 5 November.** Lighthouse (Google's speed and quality score) was not run for v2: the build machine could not load Firebase from Google's servers, so a speed score from there would not be comparable with the October numbers. v2 adds no images, fonts or libraries and about 4 KB of styles, so the October scores should hold; run Lighthouse on v2 once before publishing it.
+
+## 12. Round 3: the professor's feedback (5 November 2026)
+
+The professor tested the app and wrote three things: (a) a link that needs no log in and lands on Home, (b) items could be checked out without choosing a dorm and the pickup code did not say where to collect, (c) features for sign ups and community, an About us (our story), and the user feedback form. Everything below is in `v2/` only; `v1/` is unchanged.
+
+**(a) Straight to Home, no account.**
+- The public link https://daklod48.github.io/hellodorm/ is a tiny forwarding page (`index.html` at the top of the repository) that opens `v2/` at once.
+- v1 started every new visitor on 3 onboarding cards and then a welcome screen with Sign in, Sign up, Guest and Demo. v2 makes anyone who is not signed in a **guest** immediately and shows Home. Sign in and Sign up are small links on Home marked "(optional)".
+- **Guest checkout without the database.** A guest's order and pickup code are saved in the browser's own storage (the same notebook that already held the guest's cart). Why: it needs no change in the Firebase console, it works even if the free database quota is used up, and a professor clicking through does not hold real shop items away from other testers. The cost: a guest order exists only in that browser and is not moved into an account at sign up. A signed in user's checkout works exactly as before (database, shared shop state, 48 hour hold).
+
+**(b) Dorm first.**
+- Home starts with a large "Choose your dorm" button for anyone without a dorm. The choice is remembered (guests: on the device; accounts: in the account).
+- Every item card says "Pick up: Thalerova" with the distance. Browse has a **Pickup dorm** filter, sorted by distance from your dorm.
+- The item page shows the full **pickup place**: dorm, stand spot, address, distance, opening hours, next pickup window. If it is not your dorm, a yellow box says so ("You pick this up at Strahov, 6.7 km from Thalerova") with a button to see items at your own dorm.
+- Checkout is now 3 numbered steps: 1 Pickup place, 2 Payment (demo), 3 Pickup code. For every stand in the order, the pickup place is shown again with a large tick box "I can pick up at Koleje Strahov". The pay button stays grey and a tap explains why until every pickup place is ticked. This is the step the professor asked for: the place is confirmed before payment, not discovered after.
+- The pickup code card says "Show this code at the HelloDorm stand in Koleje Strahov", followed by the full pickup place.
+- **Stand spot.** The data has opening hours but no room or stand location, and the stands are fictional, so v2 shows a generic line "HelloDorm stand at the main entrance (planned location)" instead of inventing rooms. To set a real spot for a dorm, add `spot: { en: 'Lobby, next to reception', cs: 'Vstupní hala u recepce' }` to that dorm in `v2/data/dorms.js`.
+
+**(c) Community and sign ups.**
+- **About us**: our story (built only from facts in `SPEC.md`: the problem in Prague dorms, the stand idea, the November 2026 tests, Team 5 of 3BE314), what we promise, and links to feedback and invites. The words are in `v2/texts.js` (`story_p1` to `story_p3`); please put the story in your own words.
+- **Give feedback**: your feedback forms from last week were not in the repository, so the app has a short form of its own: (1) how easy was it to find an item at your dorm, 1 to 5; (2) how clear was where you pick up, 1 to 5; (3) would you sell or donate through HelloDorm when you move out, yes, maybe or no; (4) would you buy a cleaned item at your dorm stand instead of new, yes, maybe or no; (5) an optional comment. Questions 1 to 4 are counted in the existing `stats` counters (for example `fb_q1_4` counts how many people answered 4 to question 1). The current security rules already allow that, so no console change was needed. The comment is sent to the managers' phones through ntfy, like the drop off alerts. Manager mode, Totals, shows the averages and counts. Note: an ntfy topic can be read by anyone who knows its name, and the name is in the public code, so the form asks people to leave out names and contact details.
+- **Three features, and why these three:**
+  1. **Wishlist alerts** ("Tell me about new matches" in Browse after a search or category). They are saved in the account, so a guest who taps it is invited to sign up: the feature gives a concrete reason to make an account. Saved shows each alert with the matching items available now. Honest limit: the 30 sample items never change, so an alert cannot fire for a truly new listing in this prototype.
+  2. **Invite a dorm mate** (Home, Profile, About us). It shares or copies a link such as `https://daklod48.github.io/hellodorm/?dorm=thaler&ref=invite`, which opens HelloDorm with that dorm already chosen. A stand is only useful when enough people in the same building use it (a local **network effect**: every extra user makes the service better for the others), so growth should spread dorm by dorm.
+  3. **Dorm board** (Home). Stands ranked by the items waiting there, your dorm highlighted. It gives each dorm a little team pride and shows that others take part (**social proof**: people join more readily when they see others doing it). It also helps the dorm first goal by showing where the items are. It says on screen that it counts the sample items.
+- New counters (Manager mode, Totals): guest demo orders, feedback forms sent, invite links shared, visits from invites, alerts set, and every feedback answer.
+
+**Optional console step (not needed for anything above).** To store feedback comments in the database instead of only sending them to phones, a new rule would be needed for a `feedback` collection. This was deliberately avoided; ask Claude Code for the rule text if you want it.
