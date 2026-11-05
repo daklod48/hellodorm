@@ -252,3 +252,9 @@ The professor tested the app and wrote three things: (a) a link that needs no lo
 8. To pay on the test page use Stripe's test card `4242 4242 4242 4242`, any future date (for example 12/34), any 3 digit CVC, any name.
 
 **Firebase console: nothing to do.** Email and password sign in and anonymous sign in (for the demo) are already switched on (v1 uses both). The current security rules already let each signed in person read and write only their own `users/<id>` document and its orders, including the new fields `paid`, `payMethod`, `paidAt` and `pendingPay`. Email and password sign in does not depend on the authorized domains list.
+
+## 14. The Improvement Lab (`LAB/`)
+
+The owner's `LAB/MACHINE.md` describes measured improvement rounds: a frozen rubric (`LAB/RUBRIC.md`: 8 criteria, 1 to 10), captures of every main screen at phone and laptop size (`LAB/capture.py`, using the stand-in database so nothing is written), an **independent scorer** (a fresh AI agent that sees only the rubric, the captures and the measured numbers, never the builder's reasoning), and a strict rule: a run is kept only if the total score rises. `LAB/RUNS.md` and `LAB/runs.json` log every run; `LAB/tracker.html` shows them as cards with a score chart and opens by double-click. `python LAB/build_tracker.py` rebuilds it.
+
+Result on 5 November 2026: baseline (round 4) 59 / 80; run 1 57 (reverted); run 2 58 (reverted); stop rule reached. The app on `main` was not changed by the Lab. Recommendations are at the end of `LAB/RUNS.md`.
