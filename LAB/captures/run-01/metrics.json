@@ -1,0 +1,28 @@
+{
+  "run": 1,
+  "date": "2026-11-05 08:04",
+  "ready_seconds_median": 0.319,
+  "ready_seconds_runs": [
+    0.299,
+    0.319,
+    0.326
+  ],
+  "note_speed": "Time from opening the page to the app being ready, local server, stand-in database, same machine every run.",
+  "code_bytes_v2": 431901,
+  "flow_phone": {
+    "after_demo": "checkout",
+    "after_pay": "thanks"
+  },
+  "flow_laptop": {
+    "after_demo": "checkout",
+    "after_pay": "thanks"
+  },
+  "page_errors": [],
+  "checks_failures": {
+    "contrast_4_5": 0,
+    "tap_targets_44px": 0,
+    "text_12px_and_field_outlines": 0,
+    "dashes_in_visible_text": 0
+  },
+  "note_size": "Includes the QR library vendor-qrcode.mjs (51907 bytes), loaded only on pickup pass screens."
+}

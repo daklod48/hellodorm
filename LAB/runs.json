@@ -35,5 +35,49 @@
    "tools/fake-firebase stand-in database (no real data written)",
    "independent scorer subagent"
   ]
+ },
+ {
+  "run": 1,
+  "date": "2026-11-05",
+  "verdict": "reverted",
+  "changes": [
+   "Home: items at your dorm moved right under the header and search, as a swipeable strip on phones; Sell or donate and Find cleaned items moved below it; account choices compacted below.",
+   "Checkout: total and pay button pinned above the tab bar on phones; the unconfigured card option says 'Coming soon. For now, use Demo pay below.'"
+  ],
+  "innovation": "Pickup pass: the pickup code also as a QR code on a ticket style card (MIT library qrcode-generator 2.0.4 by Kazuhiko Arase, loaded only on pass screens).",
+  "references": [
+   "Too Good To Go (https://www.toogoodtogo.com/en-gb): nearby offers first on Home",
+   "Vinted (https://www.vinted.co.uk/): feed first Home with search on top",
+   "Olio (https://olioapp.com/en/): what is near you first. All three studied in Chrome on 20 Oct 2026 (DESIGN-NOTES.md); not reopened, the build machine's network blocks them."
+  ],
+  "scores": {
+   "first_impression_beauty": 7,
+   "clarity_of_main_task": 6,
+   "flow_without_dead_ends": 7,
+   "trust_and_credibility": 8,
+   "mobile_quality": 7,
+   "speed": 8,
+   "accessibility": 7,
+   "delight_or_innovation": 7
+  },
+  "total": 57,
+  "top_3_flaws": [
+   "Home stacks too many blocks, and on phones Sell or donate is pushed below the item carousel, hiding one of the two main tasks.",
+   "Phone top bar is crowded (Back, Help, title, Cart, Inbox, language), so titles are cut ('Electric kett...').",
+   "Checkout depends on a tick box before the pale Pay button works, and on phones the payment choice sits under the pinned pay bar; laptop Orders and Saved leave large empty areas."
+  ],
+  "size_bytes": 431901,
+  "size_change_pct": 14.9,
+  "ready_seconds": 0.319,
+  "tests": "contrast 0, taps 0, readable 0, dashes 0 failures; flow reached checkout and success at 390 and 1440; 0 page errors",
+  "scorer": "independent subagent (fresh, saw only RUBRIC.md, captures and metrics.json)",
+  "preview": "not published (reverted); candidate kept on local branch lab-run-01, commit 81146d0",
+  "why_reverted": "Total fell from 59 to 57 (flow 8 to 7, accessibility 8 to 7). Rule: keep only if the total rises.",
+  "tools": [
+   "Playwright with headless Chromium",
+   "tools/fake-firebase stand-in database",
+   "npm registry (qrcode-generator)",
+   "independent scorer subagent"
+  ]
  }
 ]

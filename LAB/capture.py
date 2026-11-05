@@ -64,7 +64,7 @@ def ready_times(b, n=3):
 
 def code_bytes():
     v2 = ROOT / 'v2'
-    files = [*v2.glob('*.js'), *v2.glob('*.css'), *v2.glob('*.html'), *(v2 / 'data').glob('*.js')]
+    files = [*v2.glob('*.js'), *v2.glob('*.mjs'), *v2.glob('*.css'), *v2.glob('*.html'), *(v2 / 'data').glob('*.js')]
     return sum(f.stat().st_size for f in files)
 
 
