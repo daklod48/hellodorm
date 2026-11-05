@@ -59,7 +59,7 @@ JS = r"""
   return bad;
 }
 """
-SCREENS_GUEST = ["onboarding", "welcome", "signin", "signup", "about", "home", "browse", "item/k1", "saved", "cart", "stands/map", "waitlist", "profile", "myitems", "orders"]
+SCREENS_GUEST = ["onboarding", "welcome", "signin", "signup", "about", "home", "browse", "item/k1", "item/s1", "checkout/k1", "saved", "cart", "stands/map", "waitlist", "profile", "myitems", "orders"]
 SCREENS_DEMO = ["home", "myitems", "notes", "orders", "cart", "sell", "profile", "bank"]
 fails = 0
 with sync_playwright() as pw:
@@ -74,7 +74,7 @@ with sync_playwright() as pw:
                 fails += 1
                 print(f"FAIL {w}px {label}: {x['ratio']}:1 {x['color']} on {x['bg']} <{x['tag']} .{x['cls']}> '{x['text']}'")
         run("onboarding")
-        p.click("[data-act=ob-skip]"); p.wait_for_timeout(400); run("welcome")
+        p.goto(BASE + "#/welcome"); p.wait_for_timeout(400); run("welcome")
         p.click(".langbtn", force=True); p.wait_for_timeout(300); run("language menu"); p.keyboard.press("Escape"); p.click("body", position={"x": 5, "y": 400})
         for s in ["signin", "signup", "about"]:
             p.goto(BASE + "#/" + s); p.wait_for_timeout(500); run(s)
@@ -88,6 +88,9 @@ with sync_playwright() as pw:
             if p.is_visible("[data-act=reserve]"): p.click("[data-act=reserve]", force=True); p.wait_for_timeout(500); run("need account dialog"); p.keyboard.press("Escape")
         if p.is_visible(".pip-btn"):
             p.click(".pip-btn >> visible=true", force=True); p.wait_for_timeout(600); run("pip faq"); p.keyboard.press("Escape")
+        p.goto(BASE + "#/checkout/k2"); p.wait_for_timeout(600)
+        if p.locator(".confirm-pick").count():
+            p.click(".confirm-pick", force=True); p.wait_for_timeout(200); run("guest checkout ticked"); p.click("#payBtn", force=True); p.wait_for_timeout(1200); run("guest pickup code")
         p.goto(BASE + "#/welcome"); p.wait_for_timeout(900)
         p.click("[data-act=demo]", force=True); p.wait_for_timeout(6000)
         for s in SCREENS_DEMO:

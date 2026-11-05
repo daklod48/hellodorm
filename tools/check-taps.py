@@ -25,7 +25,7 @@ JS = r"""
   return out;
 }
 """
-SCREENS = ["welcome", "signin", "signup", "about", "home", "browse", "item/k1", "saved", "cart", "stands/list", "stands/map", "waitlist", "profile", "myitems", "orders", "notes"]
+SCREENS = ["welcome", "signin", "signup", "about", "home", "browse", "item/k1", "item/s1", "checkout/k1", "saved", "cart", "stands/list", "stands/map", "waitlist", "profile", "myitems", "orders", "notes"]
 fails = 0
 with sync_playwright() as pw:
     b = launch(pw)
@@ -35,7 +35,7 @@ with sync_playwright() as pw:
         global fails
         for x in p.evaluate(JS):
             fails += 1; print(f"FAIL {label}: <{x['tag']} .{x['cls']}> '{x['text']}' {x['w']}x{x['h']}")
-    run("onboarding"); p.click("[data-act=ob-skip]"); p.wait_for_timeout(300); run("welcome")
+    run("onboarding"); p.goto(BASE + "#/welcome"); p.wait_for_timeout(300); run("welcome")
     p.click(".langbtn", force=True); p.wait_for_timeout(300); run("language menu"); p.click("body", position={"x": 5, "y": 400})
     for s in ["signin", "signup", "about"]:
         p.goto(BASE + "#/" + s); p.wait_for_timeout(400); run(s)
@@ -43,6 +43,10 @@ with sync_playwright() as pw:
     if p.is_visible("#modal.show"): run("dorm dialog"); p.wait_for_timeout(500); p.click(".dorm-opt >> nth=2", force=True); p.wait_for_timeout(600)
     for s in SCREENS[4:]:
         p.goto(BASE + "#/" + s); p.wait_for_timeout(500); run("guest " + s)
+    # v2: a guest pays for one item and sees the pickup code (stored on the device only)
+    p.goto(BASE + "#/checkout/k2"); p.wait_for_timeout(600)
+    if p.locator(".confirm-pick").count():
+        run("guest checkout"); p.click(".confirm-pick", force=True); p.click("#payBtn", force=True); p.wait_for_timeout(1200); run("guest pickup code")
     p.goto(BASE + "#/welcome"); p.wait_for_timeout(900)
     p.click("[data-act=demo]", force=True); p.wait_for_timeout(6000)
     for s in ["home", "myitems", "orders", "cart", "sell", "profile", "bank", "notes"]:

@@ -824,3 +824,34 @@ body.modal-open { position: fixed; left: 0; right: 0; overflow: hidden; width: 1
 @media (max-width: 899px) { .detail-cta .cta-row .btn, .detail-cta .cta-row .cartbtn, .detail-cta > .heart.big { border-radius: 16px; } }
 /* Very narrow phones (320 to 379 px, and long Czech words): only the button words, no small explanation line. */
 @media (max-width: 379px) { .detail-cta .cta-row small { display: none; } .detail-cta .cta-row .btn, .detail-cta .cta-row .cartbtn { font-size: .94rem; hyphens: none; } /* never hyphens: AI-LOG rule, no dashes in visible text */ }
+
+/* ===================== 20. v2 dorm first (professor feedback, 5 Nov 2026) ===================== */
+.pickup-line b { color: var(--ink); font-weight: 600; }
+.sel.wide { flex: 1 1 100%; }
+@media (max-width: 599px) { .filter-row > .sel.wide { grid-column: 1 / -1; } }
+.dorm-first { margin-top: 6px; }
+.hello.has-bg .dorm-why, .hello.has-bg .guest-sign, .hello.has-bg .guest-sign a { color: var(--white); }
+.dorm-why { margin: 8px 0 0; font-size: var(--fs-sm); max-width: 34ch; }
+.guest-sign { margin: 10px 0 0; font-size: var(--fs-sm); }
+.guest-sign a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 700; color: var(--green); }
+.pickup-place h3 { font-size: var(--fs-lg); margin-bottom: 8px; }
+.pickup-place .eyebrow { margin-bottom: 2px; }
+.co-items { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.co-items .sum-card { margin: 0; box-shadow: none; }
+.warn-line { color: var(--ink); background: var(--sun-l); border-radius: 10px; padding: 8px 10px; margin-top: 10px; }
+.co-h { font-size: var(--fs-lg); margin: 4px 0 10px; }
+.confirm-pick { display: flex; align-items: center; gap: 12px; min-height: 56px; margin-top: 12px; padding: 8px 14px; border-radius: 14px; background: var(--white); border: 2px solid var(--green); font-weight: 700; cursor: pointer; position: relative; }
+.confirm-pick input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.confirm-pick .box { width: 28px; height: 28px; flex: none; border-radius: 8px; border: 2px solid var(--green); background: var(--white); display: grid; place-items: center; color: transparent; }
+.confirm-pick .box .ic { width: 18px; height: 18px; stroke-width: 3; }
+.confirm-pick:has(input:checked) { background: var(--green); color: var(--white); }
+.confirm-pick input:checked + .box { background: var(--white); color: var(--green); animation: picked .3s var(--spring); }
+.confirm-pick:has(input:focus-visible) { outline: 3px solid var(--sun); outline-offset: 2px; }
+.steps { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 0; margin: 0 0 16px; }
+.steps li { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; font-size: var(--fs-min); font-weight: 600; color: var(--grey); }
+.steps li b { display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--r-pill); background: var(--white); border: 2px solid var(--line); color: var(--grey); font-size: var(--fs-sm); }
+.steps li.now { color: var(--ink); }
+.steps li.now b { background: var(--green); border-color: var(--green); color: var(--white); }
+#payBtn[aria-disabled="true"] { background: #8DB9A4; box-shadow: none; color: var(--ink); }
+.code-where { display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 700; font-size: var(--fs-lg); position: relative; }
+.code-where .ic { color: var(--green); }

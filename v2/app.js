@@ -55,7 +55,7 @@ const S = {
 
 function blankProf() {
   return { name: '', email: '', dorm: '', lang: guessLang(), hearts: [], cart: [], lastTab: 'home', search: '',
-    filters: { cat: '', cond: '', max: 0 }, bank: { holder: '', iban: '', bankName: '' }, draft: null, lastSeen: 0 };
+    filters: { cat: '', cond: '', max: 0, dorm: '' }, bank: { holder: '', iban: '', bankName: '' }, draft: null, lastSeen: 0 };
 }
 function guessLang() {
   try { const g = JSON.parse(localStorage.getItem('hd_guest') || '{}'); if (g.lang) return g.lang; } catch (e) { /* storage blocked */ }
@@ -131,6 +131,21 @@ function nextWindow(from = now()) {
 }
 const hoursTxt = () => t('hours_txt');
 const winTxt = (w) => `${fmtDate(w.start)}, ${String(new Date(w.start).getHours()).padStart(2, '0')}:00 ${t('to')} ${String(new Date(w.end).getHours()).padStart(2, '0')}:00`;
+// v2: one block that says exactly where and when an item is picked up (item page, checkout, pickup code).
+// A dorm may carry its own 'spot' (en and cs) in data/dorms.js; otherwise a generic, clearly planned location is shown.
+function pickupPlace(d, { title = true, items = '' } = {}) {
+  const w = nextWindow(), me = myDorm();
+  const dist = me && me.id !== d.id ? t('away', { d: fmtDist(distanceM(me, d)) }) : me ? t('in_your_dorm') : '';
+  return `<div class="stand-box pickup-place">
+    ${title ? `<p class="eyebrow">${t('pickup_at')}</p>` : ''}
+    <h3>${ic('store')}<span>${esc(d.name)}</span></h3>
+    <p class="meta">${ic('flag')}<span>${d.spot ? esc(L(d.spot)) : t('stand_spot_default')}</span></p>
+    <p class="meta">${ic('map-pin')}<span>${esc(d.address)}${dist ? ` · <b>${dist}</b>` : ''}</span></p>
+    <p class="meta">${ic('clock')}<span>${hoursTxt()}</span></p>
+    ${w ? `<p class="meta">${ic('calendar')}<span>${t('next_pickup', { w: winTxt(w) })}</span></p>` : ''}
+    ${items}
+  </div>`;
+}
 const tick = (on) => (on ? `<span class="tick" aria-hidden="true">${ic('check')}</span>` : '');
 // Category label; "Other" items carry the student's own words.
 const catName = (it) => (it.cat === 'other' && it.other ? `${t('cat_other')}: ${it.other}` : t('cat_' + it.cat));
@@ -515,7 +530,7 @@ function card(it) {
     <div class="cb">
       <div class="badges"><span class="badge cond">${ic('star')}${t('cond_' + it.cond)}</span><span class="badge clean">${ic('sparkles')}<span class="long">${t('cleaned')}</span><span class="short">${t('cleaned_short')}</span></span></div>
       <h3><a href="#/item/${it.id}">${esc(L(it.title))}</a></h3>
-      <p class="meta" title="${esc(t('stand_of', { d: d.short }))}">${ic('store')}<span><span class="sr">${t('stand_of', { d: d.short })}</span><span aria-hidden="true">${d.short}</span>${distShort(it.dorm) ? ' · ' + distShort(it.dorm) : ''}</span></p>
+      <p class="meta pickup-line">${ic('map-pin')}<span><b>${t('pickup_card', { d: d.short })}</b>${distShort(it.dorm) ? ' · ' + distShort(it.dorm) : ''}</span></p>
       <p class="meta small"><span>${t('new_was', { p: czk(it.newPrice) })} · ${fmtAgo(it.listedMin * MIN + (Date.now() - PAGE_OPENED))}</span></p>
       ${st === 'free' ? `<div class="card-actions">${cartBtn(it.id)}</div>` : ''}
     </div>
@@ -669,7 +684,9 @@ SCREENS.home = () => {
         <div>
           <p class="eyebrow">${modeBadge()}</p>
           <h2>${esc(greet)}</h2>
-          ${d ? `<button class="dorm-line" data-act="dorm">${ic('map-pin')}<span>${t('your_stand', { d: d.short })}${distTo(d.id) != null && S.pos ? ' · ' + fmtDist(distTo(d.id)) : ''}</span><u>${t('change')}</u></button>` : ''}
+          ${d ? `<button class="dorm-line" data-act="dorm">${ic('map-pin')}<span>${t('your_stand', { d: d.short })}${distTo(d.id) != null && S.pos ? ' · ' + fmtDist(distTo(d.id)) : ''}</span><u>${t('change')}</u></button>`
+            : `<button class="btn primary big dorm-first" data-act="dorm">${ic('map-pin')}${t('choose_dorm_first')}</button><p class="dorm-why">${t('dorm_why')}</p>`}
+          ${!signedIn() ? `<p class="guest-sign"><a href="#/signin">${t('sign_in')}</a> · <a href="#/signup">${t('sign_up')}</a> <span>(${t('optional')})</span></p>` : ''}
         </div>
         ${bg ? `<span class="photo-credit">${bg.source === 'Google Gemini' ? t('credit_ai_short') : `${t('photo_credit')}: ${esc(bg.author)} · ${esc(bg.license)}`}</span>` : ''}
         ${pipPose(signedIn() ? 'wave' : 'curious', 'pip-greet bob', 100)}
@@ -705,7 +722,7 @@ SCREENS.home = () => {
 // ---------- Browse ----------
 function filtered() {
   const f = S.prof.filters, q = (S.prof.search || '').toLowerCase();
-  return ITEMS.filter((i) => (!f.cat || i.cat === f.cat) && (!f.cond || i.cond === f.cond) && (!f.max || i.price <= f.max)
+  return ITEMS.filter((i) => (!f.cat || i.cat === f.cat) && (!f.cond || i.cond === f.cond) && (!f.max || i.price <= f.max) && (!f.dorm || i.dorm === f.dorm)
     && (!q || (i.title.en + ' ' + i.title.cs + ' ' + i.desc.en + ' ' + i.desc.cs + ' ' + t('cat_' + i.cat)).toLowerCase().includes(q)));
 }
 SCREENS.browse = () => {
@@ -715,7 +732,9 @@ SCREENS.browse = () => {
   const sortFn = (a, b) => (shopState(a.id) === 'free' ? 0 : 1) - (shopState(b.id) === 'free' ? 0 : 1) || dist(a) - dist(b) || a.listedMin - b.listedMin;
   const mine = d ? list.filter((i) => i.dorm === d.id).sort(sortFn) : [];
   const others = list.filter((i) => !d || i.dorm !== d.id).sort(sortFn);
-  const active = (f.cat ? 1 : 0) + (f.cond ? 1 : 0) + (f.max ? 1 : 0) + (S.prof.search ? 1 : 0);
+  const active = (f.cat ? 1 : 0) + (f.cond ? 1 : 0) + (f.max ? 1 : 0) + (f.dorm ? 1 : 0) + (S.prof.search ? 1 : 0);
+  const fd = f.dorm ? dormById(f.dorm) : null;
+  const withItems = DORMS.filter((x) => ITEMS.some((i) => i.dorm === x.id)).sort((a, b) => (d ? distanceM(d, a) - distanceM(d, b) : a.short.localeCompare(b.short)));
   return {
     title: t('nav_browse'),
     html: `<section class="browse">
@@ -726,6 +745,8 @@ SCREENS.browse = () => {
           ${SHOP_CATEGORIES.map((c) => `<button class="chip-btn ${f.cat === c.id ? 'on' : ''}" aria-pressed="${f.cat === c.id}" data-act="f-cat" data-v="${c.id}">${f.cat === c.id ? tick(true) : ic(c.icon)}${t('cat_' + c.id)}</button>`).join('')}
         </div>
         <div class="filter-row">
+          <label class="sel wide">${ic('map-pin')}<span>${t('f_dorm')}</span>
+            <select data-in="f-dorm"><option value="">${t('all_dorms')}</option>${withItems.map((x) => `<option value="${x.id}" ${f.dorm === x.id ? 'selected' : ''}>${esc(x.short)}${d && x.id === d.id ? ` (${t('your_dorm_short')})` : d ? ` (${fmtDist(distanceM(d, x))})` : ''}</option>`).join('')}</select></label>
           <label class="sel">${ic('star')}<span>${t('f_condition')}</span>
             <select data-in="f-cond"><option value="">${t('any')}</option>${CONDITIONS.map((c) => `<option value="${c.id}" ${f.cond === c.id ? 'selected' : ''}>${t('cond_' + c.id)}</option>`).join('')}</select></label>
           <label class="sel">${ic('banknote')}<span>${t('f_max')}</span>
@@ -734,10 +755,13 @@ SCREENS.browse = () => {
         </div>
         <p class="meta small">${ic('info')}<span>${t(signedIn() ? 'filters_saved' : 'filters_saved_guest')}</span></p>
       </div>
+      ${fd ? `<div class="sec-head"><h2>${t('pickup_at_d', { d: fd.short })}</h2><span class="count-txt">${t('n_items', { n: list.length })}</span></div>
+        ${list.length ? grid(list.sort(sortFn)) : empty('search', t('no_results_t'), t('no_results_b'), `<button class="btn outline" data-act="f-clear">${t('clear_filters')}</button>`)}` : `
+      ${!d ? `<div class="callout">${ic('map-pin')}<div><b>${t('no_dorm_t')}</b><p>${t('no_dorm_b')}</p></div><button class="btn primary" data-act="dorm">${t('choose_dorm')}</button></div>` : ''}
       ${d ? `<div class="sec-head"><h2>${t('at_your_stand', { d: d.short })}</h2><span class="count-txt">${t('n_items', { n: mine.length })}</span></div>
         ${mine.length ? grid(mine) : `<div class="callout">${ic('store')}<div><b>${t('none_match_here')}</b><p>${t('none_match_here_b')}</p></div></div>`}` : ''}
       <div class="sec-head"><h2>${d ? t('other_stands') : t('all_stands')}</h2><span class="count-txt">${t('n_items', { n: others.length })}</span></div>
-      ${others.length ? grid(others) : empty('search', t('no_results_t'), t('no_results_b'), `<button class="btn outline" data-act="f-clear">${t('clear_filters')}</button>`)}
+      ${others.length ? grid(others) : empty('search', t('no_results_t'), t('no_results_b'), `<button class="btn outline" data-act="f-clear">${t('clear_filters')}</button>`)}`}
     </section>`,
     after() {
       const inp = $('#qInput');
@@ -749,6 +773,14 @@ SCREENS.browse = () => {
     },
   };
 };
+
+// v2: is the pickup place the user's own dorm? Said before they reserve, not after.
+function dormNotice(d) {
+  const me = myDorm();
+  if (!me) return `<div class="callout">${ic('map-pin')}<div><b>${t('no_dorm_item_t')}</b><p>${t('no_dorm_item_b')}</p></div><button class="btn outline sm" data-act="dorm">${t('choose_dorm')}</button></div>`;
+  if (me.id === d.id) return '';
+  return `<div class="callout warn">${ic('triangle-alert')}<div><b>${t('not_my_dorm_t')}</b><p>${t('not_my_dorm_b', { d: d.short, dist: fmtDist(distanceM(me, d)), mine: me.short })}</p></div><button class="btn outline sm" data-act="my-dorm-items">${t('see_my_dorm')}</button></div>`;
+}
 
 // ---------- Item detail ----------
 SCREENS.item = (id) => {
@@ -771,13 +803,8 @@ SCREENS.item = (id) => {
         <p class="price-line"><b>${czk(it.price)}</b> <s>${t('new_was', { p: czk(it.newPrice) })}</s> <span class="pill green">${t('you_save', { n: save })}</span></p>
         <p>${esc(L(it.desc))}</p>
         <p class="meta">${ic('star')}<span>${t('cond_' + it.cond)}: ${t('condd_' + it.cond)}</span></p>
-        <div class="stand-box">
-          <h3>${ic('store')}${t('pickup_at')}</h3>
-          <p><b>${t('stand_of', { d: d.name })}</b></p>
-          <p class="meta">${ic('map-pin')}<span>${esc(d.address)}${distShort(d.id) ? ' · ' + (distShort(d.id) === t('in_your_dorm') ? distShort(d.id) : t('away', { d: distShort(d.id) })) : ''}</span></p>
-          <p class="meta">${ic('clock')}<span>${hoursTxt()}</span></p>
-          ${w ? `<p class="meta">${ic('calendar')}<span>${t('next_pickup', { w: winTxt(w) })}</span></p>` : ''}
-        </div>
+        ${pickupPlace(d)}
+        ${dormNotice(d)}
         <div class="detail-cta">${heartBtn(id, true)}${cta}</div>
       </div>
     </section>
@@ -831,26 +858,45 @@ SCREENS.checkout = (arg) => {
   if (!lines.length) return { title: t('checkout'), html: `<section class="narrow">${empty('shopping-cart', t('cart_empty_t'), t('cart_empty_b'), `<a class="btn primary" href="#/browse">${t('buy_cta')}</a>`)}</section>` };
   const total = lines.reduce((s, x) => s + x.price, 0);
   const stands = [...new Set(lines.map((x) => x.dorm))];
+  const me = myDorm();
   return {
     title: t('checkout'),
     html: `<section class="narrow">
-      <div class="demo-banner">${ic('info')}<span>${t('demo_pay_banner')}</span></div>
+      <ol class="steps" aria-label="${t('checkout')}"><li class="now"><b>1</b>${t('co_step1')}</li><li><b>2</b>${t('co_step2')}</li><li><b>3</b>${t('co_step3')}</li></ol>
       <div class="cols"><div class="main">
-      ${stands.map((dm) => { const d = dormById(dm); return `<p class="meta"><b>${ic('store')}</b><span><b>${t('stand_of', { d: d.short })}</b> · ${esc(d.address)}</span></p>
-        ${lines.filter((x) => x.dorm === dm).map((it) => `<div class="sum-card">${photo(it, 'thumb')}<div><b>${esc(L(it.title))}</b><p class="meta"><span>${t('cond_' + it.cond)}</span></p></div><b class="sum-price">${czk(it.price)}</b></div>`).join('')}`; }).join('')}
+      <h2 class="co-h">${t('co_step1_h', { n: stands.length })}</h2>
+      ${!me ? `<div class="callout">${ic('map-pin')}<div><b>${t('no_dorm_item_t')}</b><p>${t('no_dorm_item_b')}</p></div><button class="btn outline sm" data-act="dorm">${t('choose_dorm')}</button></div>` : ''}
+      ${stands.map((dm) => { const d = dormById(dm); const its = lines.filter((x) => x.dorm === dm);
+        const far = me && me.id !== d.id;
+        return `${pickupPlace(d, { items: `<div class="co-items">${its.map((it) => `<div class="sum-card">${photo(it, 'thumb')}<div><b>${esc(L(it.title))}</b><p class="meta"><span>${t('cond_' + it.cond)}</span></p></div><b class="sum-price">${czk(it.price)}</b></div>`).join('')}</div>
+          ${far ? `<p class="meta warn-line">${ic('triangle-alert')}<span>${t('not_my_dorm_b', { d: d.short, dist: fmtDist(distanceM(me, d)), mine: me.short })}</span></p>` : ''}
+          <label class="confirm-pick"><input type="checkbox" form="fPay" name="ok" data-in="co-ok" value="${dm}"><span class="box">${ic('check')}</span><span>${t('co_confirm', { d: d.name })}</span></label>` })}`; }).join('')}
       ${stands.length > 1 ? `<p class="meta">${ic('ticket')}<span>${t('cart_stands_note', { n: stands.length })}</span></p>` : ''}
       </div><aside class="side">
+      <h2 class="co-h">${t('co_step2')}</h2>
+      <div class="demo-banner">${ic('info')}<span>${t('demo_pay_banner')}</span></div>
       <form id="fPay" class="form card-form">
         <label>${t('card_number')}<input name="cn" inputmode="numeric" value="4242 4242 4242 4242" autocomplete="off"></label>
         <div class="row2"><label>${t('card_exp')}<input name="ce" value="12/29" autocomplete="off"></label><label>${t('card_cvc')}<input name="cv" value="123" autocomplete="off"></label></div>
         <p class="note">${ic('lock')}${t('nothing_charged')}</p>
         <div class="total"><span>${t('total')}</span><b>${czk(total)}</b></div>
         <p class="form-err" id="fErr" role="alert"></p>
-        <button class="btn primary wide big" type="submit">${ic('credit-card')}${t('pay_demo', { p: czk(total) })}</button>
+        <button class="btn primary wide big" type="submit" id="payBtn" aria-describedby="fErr">${ic('credit-card')}${t('pay_demo', { p: czk(total) })}</button>
+        <p class="meta small" id="payHint">${ic('square-check')}<span>${t('co_confirm_first')}</span></p>
       </form>
       </aside></div>
     </section>`,
-    after() { $('#fPay').addEventListener('submit', (e) => { e.preventDefault(); doCheckout(arg, e.target); }); },
+    after() {
+      const boxes = () => [...document.querySelectorAll('[data-in="co-ok"]')];
+      const sync = () => { const ok = boxes().every((b) => b.checked); $('#payBtn').setAttribute('aria-disabled', String(!ok)); $('#payHint').hidden = ok; if (ok) $('#fErr').textContent = ''; };
+      boxes().forEach((b) => b.addEventListener('change', sync)); sync();
+      $('#fPay').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const missing = boxes().find((b) => !b.checked);
+        if (missing) { $('#fErr').textContent = t('co_err_confirm'); missing.focus(); missing.closest('.pickup-place').scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+        doCheckout(arg, e.target);
+      });
+    },
   };
 };
 
@@ -929,7 +975,7 @@ SCREENS.placed = (group) => {
       <h2>${t('order_placed_t')}</h2>
       <p>${t('order_placed_b')}</p>
       <h3>${t('pickup_codes')}</h3>
-      ${list.map((o) => { const d = dormById(o.dorm); return `<a class="code-card link" href="#/order/${o.id}"><p class="eyebrow">${t('stand_of', { d: d.short })}</p><p class="bigcode">${esc(o.code)}</p><p class="meta">${ic('package')}<span>${orderItems(o).map((x) => esc(L(x.title))).join(', ')}</span></p></a>`; }).join('')}
+      ${list.map((o) => { const d = dormById(o.dorm); return `<a class="code-card link" href="#/order/${o.id}"><p class="eyebrow">${t('pickup_at')}</p><p class="code-where">${ic('store')}<span><b>${esc(d.name)}</b></span></p><p class="meta">${ic('map-pin')}<span>${esc(d.address)}</span></p><p class="bigcode">${esc(o.code)}</p><p class="meta">${ic('package')}<span>${orderItems(o).map((x) => esc(L(x.title))).join(', ')}</span></p></a>`; }).join('')}
       <a class="btn outline wide" href="#/orders">${ic('shopping-bag')}${t('all_orders')}</a>
     </section>`,
   };
@@ -953,7 +999,7 @@ SCREENS.order = (id) => {
       <div class="code-card">
         <p class="eyebrow">${t('pickup_code')}</p>
         <p class="bigcode">${esc(o.code)}</p>
-        <p>${t('show_code')}</p>
+        <p class="code-where">${ic('store')}<span>${t('show_code_at', { d: d.name })}</span></p>
         <div class="hold">${ic('timer')}<span>${t('held_for')}</span><b data-countdown="${o.expiresAt}">${fmtLeft(o.expiresAt - now())}</b></div>
         <div class="bar"><span style="width:${Math.max(0, Math.min(100, ((o.expiresAt - now()) / (HOLD_H * HOUR)) * 100))}%"></span></div>
       </div>
@@ -973,10 +1019,12 @@ SCREENS.order = (id) => {
     html: `<section class="narrow">
       <div class="cols"><div class="main">
       ${body}
+      ${o.status === 'reserved' ? pickupPlace(d) : ''}
+      ${o.guest ? `<p class="meta small">${ic('smartphone')}<span>${t('guest_order_note')}</span></p>` : ''}
       </div><aside class="side">
       <div class="sum-card">${photo(it, 'thumb')}<div><b>${esc(orderTitle(o))}</b><p>${statusPill(o.status)}</p></div><b class="sum-price">${czk(orderTotal(o))}</b></div>
       ${its.length > 1 ? `<div class="list compact">${its.map((x) => `<a class="row-card" href="#/item/${x.id}">${photo({ ...x, photoId: x.photoId || x.id }, 'thumb')}<div><b>${esc(L(x.title))}</b></div><b class="sum-price">${czk(x.price)}</b></a>`).join('')}</div>` : ''}
-      ${standBox}
+      ${o.status === 'reserved' ? '' : standBox}
       <a class="btn outline wide" href="#/orders">${ic('shopping-bag')}${t('all_orders')}</a>
       </aside></div>
     </section>`,
@@ -1792,8 +1840,9 @@ const A = {
     softRender();
   },
   'cat-go'(el) { savePrefs({ filters: { ...S.prof.filters, cat: el.dataset.cat }, search: '' }); go('browse'); },
+  'my-dorm-items'() { savePrefs({ filters: { ...S.prof.filters, dorm: S.prof.dorm } }, 300); go('browse'); },
   'f-cat'(el) { savePrefs({ filters: { ...S.prof.filters, cat: el.dataset.v } }, 300); render(); },
-  'f-clear'() { savePrefs({ filters: { cat: '', cond: '', max: 0 }, search: '' }, 300); render(); },
+  'f-clear'() { savePrefs({ filters: { cat: '', cond: '', max: 0, dorm: '' }, search: '' }, 300); render(); },
   reserve(el) {
     bump('reserve');
     go('checkout/' + el.dataset.id);
@@ -1929,6 +1978,7 @@ document.addEventListener('input', (e) => {
 document.addEventListener('change', async (e) => {
   const k = e.target.dataset && e.target.dataset.in;
   if (k === 'cart-tick') { savePrefs({ cart: S.prof.cart.map((c) => (c.id === e.target.dataset.id ? { ...c, on: e.target.checked } : c)) }, 300); render(); }
+  if (k === 'f-dorm') { savePrefs({ filters: { ...S.prof.filters, dorm: e.target.value } }, 300); render(); }
   if (k === 'f-cond') { savePrefs({ filters: { ...S.prof.filters, cond: e.target.value } }, 300); render(); }
   if (k === 'f-max') { savePrefs({ filters: { ...S.prof.filters, max: +e.target.value } }, 300); render(); }
   if (k === 'd-photo' && e.target.files[0]) {

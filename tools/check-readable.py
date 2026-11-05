@@ -40,8 +40,8 @@ with sync_playwright() as pw:
         global fails
         for x in sorted(set(p.evaluate(JS, MIN_PX))):
             fails += 1; print(f"FAIL {label}: {x}")
-    run("onboarding"); p.click("[data-act=ob-skip]"); p.wait_for_timeout(300); run("welcome")
-    for s in ["signin", "signup", "about", "waitlist"]:
+    run("onboarding"); p.goto(BASE + "#/welcome"); p.wait_for_timeout(300); run("welcome")
+    for s in ["signin", "signup", "about", "waitlist", "home", "browse", "item/s1", "checkout/k1"]:
         p.goto(BASE + "#/" + s); p.wait_for_timeout(400); run(s)
     p.goto(BASE + "#/welcome"); p.wait_for_timeout(300); p.click("[data-act=demo]", force=True); p.wait_for_timeout(5000)
     if p.is_visible("#modal.show"): p.keyboard.press("Escape")
