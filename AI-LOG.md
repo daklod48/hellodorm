@@ -29,6 +29,7 @@ For the assignment's AI statement. One line per correction: date | what the AI (
 | 2026-11-05 | The demo user was called "Alex"; checkout had pretend card fields inside the app. | Owner: the demo must read as "Demo account"; card details only on the payment provider's page (Stripe test mode) plus a Demo pay option, both ending in the same success flow with a thank you letter. |
 | 2026-11-05 | After "Try the demo account" in the reserve dialog, the app went back to the item instead of checkout (it continued before Firebase announced the sign in). | Caught by Claude Code in testing: the demo now counts as signed in the moment it starts. |
 | 2026-11-05 | firestore.rules (written by Claude Code on 2026-10-20) granted manager rights to any sign in whose email was on the list, verified or not. | Owner, from a secret scan: require `email_verified == true` in `isManager()` and in the app; list the console steps to publish the rules and to restrict the web API key. |
+
 ## AI generated images (for the AI statement)
 - Pip the seal (5 poses) and the dorm area illustrations for Jarov, Rooseveltova and Hostivař were generated with Google Gemini on 2026-10-20. Prompts: `IMAGE-PROMPTS.md`. Shown in the app's About screen as "Illustrations generated with Google Gemini".
 - Item photos are not AI generated (Unsplash, credits in `v1/img/credits.json`). Dorm photos for the other 10 dorms are Wikimedia Commons photos under CC BY or CC BY-SA (credits in `v1/img/dorms/credits-dorms.json` and in About).
