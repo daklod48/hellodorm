@@ -258,3 +258,30 @@ The professor tested the app and wrote three things: (a) a link that needs no lo
 The owner's `LAB/MACHINE.md` describes measured improvement rounds: a frozen rubric (`LAB/RUBRIC.md`: 8 criteria, 1 to 10), captures of every main screen at phone and laptop size (`LAB/capture.py`, using the stand-in database so nothing is written), an **independent scorer** (a fresh AI agent that sees only the rubric, the captures and the measured numbers, never the builder's reasoning), and a strict rule: a run is kept only if the total score rises. `LAB/RUNS.md` and `LAB/runs.json` log every run; `LAB/tracker.html` shows them as cards with a score chart and opens by double-click. `python LAB/build_tracker.py` rebuilds it.
 
 Result on 5 November 2026: baseline (round 4) 59 / 80; run 1 57 (reverted); run 2 58 (reverted); stop rule reached. The app on `main` was not changed by the Lab. Recommendations are at the end of `LAB/RUNS.md`.
+
+## 15. Security fix: managers must own their email (5 November 2026)
+
+**The hole.** `isManager()` in `firestore.rules` checked only the email on the sign in pass. Firebase lets anyone sign up with any address without proving they own it, so a stranger could register a listed manager address and get manager rights, including reading the waitlist emails.
+
+**The fix.**
+- `firestore.rules`: `isManager()` now also requires `request.auth.token.email_verified == true`. That flag becomes true only after the person clicks the link Firebase sends to that inbox. Every manager permission goes through `isManager()` (pricing and rejecting items, reading the waitlist and counters, the prototype clock, test data cleanup), so all of them now need a verified email.
+- `v2/app.js`: Manager mode appears only for a listed **and** verified email. A listed but unverified manager sees a box in Profile: **Send verification email**, then **I have verified it** (the app refreshes the sign in pass so the rules see the new flag).
+- The rules are shared by v1 and v2 (same Firebase project). v1's code is frozen, so v1 still shows its Manager menu to listed emails, but the database refuses manager reads and writes until the email is verified. Verify once in v2; the same account then works in v1 too.
+
+**The conflict to decide.** Verification needs real inboxes. The placeholder manager addresses (`manager1@hellodorm-demo.test`, `manager2@example.com` and so on) can never receive an email, so after the new rules are published nobody is a manager until real addresses are put into `v2/config.js` and `firestore.rules`. That clashes with the owner's rule "no real emails in any config file", because the repository is public. A cleaner option, ready on request: identify managers by their Firebase **user ID** (the random account number Firebase gives each account, shown in Firebase console, Authentication, Users) instead of by email. A user ID cannot be claimed by signing up, needs no verification and is not an email address.
+
+**Publish the new rules, click by click (owner).** These steps come from Claude Code's knowledge; the Firebase console could not be opened from the build machine, so labels may differ slightly.
+1. Before publishing: each real manager signs in on https://daklod48.github.io/hellodorm/v2/ , opens **Profile**, taps **Send verification email**, clicks the link in that email, and taps **I have verified it**. (Skip this and they lose Manager mode the moment the rules are published; they can still do it afterwards.)
+2. Open https://console.firebase.google.com and choose the project **hellodorm**.
+3. In the left menu open **Build**, then **Firestore Database**, then the **Rules** tab at the top.
+4. Click into the editor, select all the text (Ctrl+A) and delete it.
+5. Open `firestore.rules` from the repository (on GitHub: the file in `main` after the pull request is merged), copy all of it and paste it into the editor.
+6. Press **Publish**. The page shows the new time under the rules history on the left.
+7. Optional test with the **Rules Playground** button: simulate a **get** on `/waitlist/test` as an **authenticated** user with provider **password** and the email of a manager. With email verified off the result is **denied**; this is the fix working.
+
+**Restrict the web API key, click by click (owner).** The `apiKey` in `v2/config.js` is meant to be public (it identifies the project; the rules protect the data), but restricting it stops strangers from using it from their own websites or for other Google APIs. Same caveat as above: written from knowledge, not checked against Google's pages today.
+1. Open https://console.cloud.google.com/apis/credentials while signed in with the Google account that owns the Firebase project, and pick the project **hellodorm** in the project selector at the top.
+2. Under **API keys**, open the key whose value starts with `AIzaSyDgKu` (Firebase names it "Browser key (auto created by Firebase)"). If unsure, press **Show key** and compare it with `v2/config.js`.
+3. **Application restrictions**: choose **Websites** and add `https://daklod48.github.io/*`. Add `http://localhost:8080/*` as well if the team runs the app or the checks on a laptop.
+4. **API restrictions**: choose **Restrict key** and tick only **Identity Toolkit API** (sign in), **Token Service API** (keeps people signed in) and **Cloud Firestore API** (the database).
+5. Press **Save**, wait up to 5 minutes, then open the live link and try sign in and the demo account. If a page shows "requests from referer ... are blocked" or "API key not valid", recheck steps 3 and 4; if the error names another Firebase API, add that API to the list.

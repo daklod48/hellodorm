@@ -107,6 +107,10 @@ with sync_playwright() as pw:
             if p.is_visible("[data-act=signout-yes]"): p.click("[data-act=signout-yes]"); p.wait_for_timeout(1500)
             p.goto(BASE + "#/signin"); p.wait_for_timeout(400); p.fill("input[name=email]", "manager1@hellodorm-demo.test"); p.fill("input[name=password]", MGR_PW); p.click("#fSignin button[type=submit]"); p.wait_for_timeout(3500)
             if p.is_visible("#modal.show"): p.keyboard.press("Escape")
+            # Since 2026-11-05 Manager mode needs a verified email (Profile has the verify buttons).
+            p.goto(BASE + "#/profile"); p.wait_for_timeout(600)
+            if p.is_visible("[data-act=verify-send]"):
+                run("manager verify box"); p.click("[data-act=verify-send]", force=True); p.wait_for_timeout(600); p.click("[data-act=verify-check]", force=True); p.wait_for_timeout(900)
             p.goto(BASE + "#/manager"); p.wait_for_timeout(3500); run("manager queue")
             for tab in ["offers", "totals", "controls"]:
                 p.click(f"[data-act=mgr-tab][data-v={tab}]", force=True); p.wait_for_timeout(500); run("manager " + tab)

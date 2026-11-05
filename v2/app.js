@@ -3,7 +3,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 import {
   getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  signInAnonymously, signOut, sendPasswordResetEmail, updateProfile,
+  signInAnonymously, signOut, sendPasswordResetEmail, updateProfile, sendEmailVerification,
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
@@ -238,10 +238,12 @@ onAuthStateChanged(auth, async (user) => {
   S.user = user;
   if (user) {
     S.mode = user.isAnonymous ? 'demo' : 'user';
-    S.isManager = !!user.email && MANAGER_EMAILS.map((e) => e.toLowerCase()).includes(user.email.toLowerCase());
+    // Manager mode only for a listed AND verified email (the security rules check the same; security fix 2026-11-05).
+    S.listedManager = !!user.email && MANAGER_EMAILS.map((e) => e.toLowerCase()).includes(user.email.toLowerCase());
+    S.isManager = S.listedManager && user.emailVerified === true;
     await loadUser();
   } else {
-    S.isManager = false;
+    S.isManager = false; S.listedManager = false;
     S.myItems = []; S.orders = []; S.notes = [];
     S.prof = blankProf();
     let guest = null;
@@ -1536,6 +1538,7 @@ SCREENS.profile = () => {
           <p class="meta"><span>${S.mode === 'demo' ? t('demo_badge') : S.mode === 'guest' ? t('guest_badge') : esc(S.prof.email)}</span></p></div>
       </div>
       <div class="cols"><aside class="side first">
+      ${S.listedManager && !S.isManager ? `<div class="callout warn">${ic('shield-check')}<div><b>${t('verify_t')}</b><p>${t('verify_b', { e: esc(S.user.email) })}</p></div><div class="stack"><button class="btn primary sm" data-act="verify-send">${ic('mail')}${t('verify_send')}</button><button class="btn outline sm" data-act="verify-check">${ic('refresh-cw')}${t('verify_check')}</button></div></div>` : ''}
       ${S.mode === 'guest' ? `<div class="callout">${ic('user')}<div><b>${t('guest_cta_t')}</b><p>${t('guest_cta_b')}</p></div><a class="btn primary sm" href="#/signup">${t('sign_up')}</a></div>` : ''}
       ${signedIn() ? `<div class="impact">
         <div><b>${imp.n}</b><span>${t('items_reused')}</span></div>
@@ -2039,6 +2042,18 @@ const A = {
     for (const o of S.orders.filter((x) => x.group === g && x.paid === false)) await updateDoc(doc(db, 'users', uid(), 'orders', o.id), { paid: true, paidAt: n, payMethod: 'demo' }).catch(fail);
     setDoc(doc(db, 'users', uid()), { pendingPay: null }, { merge: true }).catch(() => {});
     bump('pay_demo'); celebrate(); go('thanks/' + g, true);
+  },
+  async 'verify-send'() {
+    try { await sendEmailVerification(S.user); toast(t('verify_sent', { e: S.user.email })); } catch (e) { fail(e); }
+  },
+  async 'verify-check'() {
+    try {
+      if (S.user.reload) await S.user.reload();
+      if (S.user.getIdToken) await S.user.getIdToken(true); // fresh pass so the rules see email_verified
+      S.isManager = S.listedManager && S.user.emailVerified === true;
+      toast(S.isManager ? t('verify_ok') : t('verify_not_yet'), S.isManager ? '' : 'err');
+      render();
+    } catch (e) { fail(e); }
   },
   async invite() {
     const url = inviteLink(), d = myDorm();

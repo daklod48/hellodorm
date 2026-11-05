@@ -2,15 +2,20 @@ rules_version = '2';
 
 // HelloDorm v1 Firestore security rules.
 // Paste into Firebase console > Firestore Database > Rules > Publish.
-// EDIT: the manager list in isManager() must match MANAGER_EMAILS in v1/config.js (lower case).
+// EDIT: the manager list in isManager() must match MANAGER_EMAILS in v2/config.js (lower case).
+// Since 2026-11-05 a manager's email must also be verified (see HOW-IT-WORKS.md section 15).
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() { return request.auth != null; }
 
+    // A manager must own the address: Firebase lets anyone sign up with any email, so the email alone proves nothing.
+    // email_verified becomes true only after the person clicks the link Firebase sends to that inbox.
+    // Every manager permission below (pricing items, waitlist and counter reads, the clock, test data cleanup) goes through here.
     function isManager() {
       return signedIn()
         && request.auth.token.email != null
+        && request.auth.token.email_verified == true
         && request.auth.token.email.lower() in [
           'manager1@hellodorm-demo.test',
           'manager2@example.com',
