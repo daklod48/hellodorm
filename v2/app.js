@@ -232,7 +232,9 @@ onAuthStateChanged(auth, async (user) => {
     let guest = null;
     try { guest = JSON.parse(localStorage.getItem('hd_guest') || 'null'); } catch (e) { /* storage blocked */ }
     if (guest) Object.assign(S.prof, guest);
-    S.mode = lsGet('hd_mode') === 'guest' ? 'guest' : 'none';
+    // v2: anyone not signed in browses as a guest at once (the professor's rule: the link lands on Home, no account).
+    S.mode = 'guest';
+    S.orders = guestOrders();
   }
   S.ready = true;
   const r = parseHash();
@@ -474,11 +476,25 @@ function photo(it, cls = '') {
   return `<div class="tile ${cls}" style="background:${c.color}">${ic(c.icon)}<span>${t('cat_' + c.id)}</span></div>`;
 }
 function shopState(id) {
+  if (!signedIn() && S.orders.some((o) => o.status === 'reserved' && orderItems(o).some((x) => x.id === id))) return 'mine';
   const s = S.shop[id];
   if (!s) return 'free';
   if (s.status === 'sold') return s.by === uid() ? 'mine-sold' : 'sold';
   if (s.status === 'reserved' && s.until > now()) return s.by === uid() ? 'mine' : 'reserved';
   return 'free';
+}
+// ---------- Guest orders (v2): kept in this browser only, so a visitor can try checkout with no account ----------
+// Nothing is written to the database and no shop item is held for other people; the pickup code is a demo code.
+const GUEST_ORDERS = 'hd_guest_orders';
+function guestOrders() {
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem(GUEST_ORDERS) || '[]'); } catch (e) { /* storage blocked */ }
+  const n = now();
+  return list.map((o) => (o.status === 'reserved' && n > o.expiresAt ? { ...o, status: 'expired' } : o)).sort((a, b) => b.reservedAt - a.reservedAt);
+}
+function saveGuestOrders(list) {
+  try { localStorage.setItem(GUEST_ORDERS, JSON.stringify(list)); } catch (e) { /* storage blocked: the order still shows until the page closes */ }
+  S.orders = list.slice().sort((a, b) => b.reservedAt - a.reservedAt);
 }
 const isHeart = (id) => S.prof.hearts.includes(id);
 function heartBtn(id, big = false) {
@@ -842,6 +858,7 @@ async function doCheckout(arg, form) {
   const lines = checkoutLines(arg), u = uid();
   const btn = form.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = t('working');
   const n = now();
+  if (!signedIn()) return guestCheckout(arg, lines, n);
   try {
     // Hold every item in one transaction; if any was taken meanwhile, nothing is reserved.
     const taken = await runTransaction(db, async (tx) => {
@@ -881,6 +898,24 @@ async function doCheckout(arg, form) {
     celebrate();
     go(ids.length === 1 ? 'order/' + ids[0] : 'placed/' + group, true);
   } catch (e) { fail(e); btn.disabled = false; btn.textContent = t('pay_demo', { p: czk(lines.reduce((s, x) => s + x.price, 0)) }); }
+}
+
+// Guest checkout (v2): same steps and codes, stored on this device only.
+function guestCheckout(arg, lines, n) {
+  const group = code('G');
+  const stands = [...new Set(lines.map((x) => x.dorm))];
+  const made = stands.map((dm) => {
+    const its = lines.filter((x) => x.dorm === dm).map((x) => ({ id: x.id, title: x.title, cat: x.cat, price: x.price, photoId: x.id }));
+    return { id: 'g' + code('').toLowerCase(), guest: true, group, dorm: dm, code: code('P'), items: its, total: its.reduce((s, x) => s + x.price, 0),
+      status: 'reserved', reservedAt: n, expiresAt: n + HOLD_H * HOUR };
+  });
+  saveGuestOrders([...made, ...guestOrders()]);
+  if (arg === 'cart') savePrefs({ cart: S.prof.cart.filter((c) => !lines.some((x) => x.id === c.id)) });
+  else if (inCart(arg)) savePrefs({ cart: S.prof.cart.filter((c) => c.id !== arg) });
+  bump('orders'); bump('orders_guest');
+  toast(t('reserved_ok'));
+  celebrate();
+  go(made.length === 1 ? 'order/' + made[0].id : 'placed/' + group, true);
 }
 
 // Several stands in one checkout: show every pickup code together.
@@ -951,6 +986,7 @@ SCREENS.order = (id) => {
       const done = async () => {
         if (+s.value < 92) { s.value = 0; s.parentElement.style.setProperty('--p', 0); return; }
         s.disabled = true;
+        if (o.guest) { saveGuestOrders(guestOrders().map((x) => (x.id === id ? { ...x, status: 'picked', pickedAt: now() } : x))); toast(t('picked_t')); celebrate(); render(); return; }
         try {
           await updateDoc(doc(db, 'users', uid(), 'orders', id), { status: 'picked', pickedAt: now() });
           for (const x of its) if (!String(x.id).startsWith('demo')) await setDoc(doc(db, 'shop', x.id), { status: 'sold', by: uid(), until: 9e15 }).catch(() => {});
@@ -972,8 +1008,8 @@ SCREENS.orders = () => {
     html: `<section class="narrow">
       <h2 class="screen-h">${t('nav_orders')}</h2>
       <p class="muted">${t('orders_sub')}</p>
-      ${!signedIn() ? empty('shopping-bag', t('guest_orders_t'), t('guest_orders_b'), `<a class="btn primary" href="#/signup">${t('sign_up')}</a>`)
-      : !list.length ? empty('shopping-bag', t('no_orders_t'), t('no_orders_b'), `<a class="btn primary" href="#/browse">${t('buy_cta')}</a>`)
+      ${!signedIn() && list.length ? `<div class="callout">${ic('smartphone')}<div><b>${t('guest_orders_here_t')}</b><p>${t('guest_orders_here_b')}</p></div><a class="btn outline sm" href="#/signup">${t('sign_up')}</a></div>` : ''}
+      ${!list.length ? empty('shopping-bag', t('no_orders_t'), t('no_orders_b'), `<a class="btn primary" href="#/browse">${t('buy_cta')}</a>`)
       : `<div class="list two">${list.map((o) => `<a class="row-card" href="#/order/${o.id}">${photo(orderThumb(o), 'thumb')}
           <div><b>${esc(orderTitle(o))}</b><p class="meta">${ic('store')}<span>${t('stand_of', { d: dormById(o.dorm).short })} · ${czk(orderTotal(o))}</span></p>
           <p class="meta small">${o.status === 'reserved' ? `${ic('timer')}<span data-countdown="${o.expiresAt}">${fmtLeft(o.expiresAt - now())}</span>` : `<span>${fmtDate(o.reservedAt)}</span>`}</p></div>
@@ -1696,7 +1732,6 @@ const A = {
   'checkout-cart'() {
     if (!S.prof.cart.some((c) => c.on && shopState(c.id) === 'free')) return toast(t('cart_none_ticked'), 'err');
     bump('reserve');
-    if (!signedIn()) return needAccount('checkout/cart');
     go('checkout/cart');
   },
   'ask-stand'() { askStand(); },
@@ -1721,7 +1756,7 @@ const A = {
     if (!S.prof.dorm) setTimeout(askDorm, 250);
   },
   demo() { startDemo(); },
-  'leave-guest'() { lsSet('hd_mode', ''); S.mode = 'none'; go('welcome'); },
+  'leave-guest'() { go('welcome'); },
   async signout() {
     if (S.mode === 'demo') {
       openModal(`<h2>${t('demo_out_t')}</h2><p>${t('demo_out_b')}</p><div class="row2"><button class="btn outline" data-act="close">${t('stay')}</button><button class="btn primary danger" data-act="signout-yes">${t('sign_out')}</button></div>`);
@@ -1761,7 +1796,6 @@ const A = {
   'f-clear'() { savePrefs({ filters: { cat: '', cond: '', max: 0 }, search: '' }, 300); render(); },
   reserve(el) {
     bump('reserve');
-    if (!signedIn()) return needAccount('checkout/' + el.dataset.id);
     go('checkout/' + el.dataset.id);
   },
   after(el) { S.after = el.dataset.to; },

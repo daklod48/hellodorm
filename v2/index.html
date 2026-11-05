@@ -8,7 +8,6 @@
   <title>HelloDorm</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2317754A'/%3E%3Ctext x='16' y='22' font-size='16' font-family='Arial' font-weight='700' text-anchor='middle' fill='white'%3EHD%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://www.gstatic.com">
-  <link rel="preload" as="image" href="img/o1-first.webp" fetchpriority="high">
   <link rel="preload" as="font" type="font/woff2" href="fonts/nunito-800-latin.woff2" crossorigin>
   <link rel="preload" as="font" type="font/woff2" href="fonts/inter-400-latin.woff2" crossorigin>
   <link rel="stylesheet" href="fonts/fonts.css">
@@ -245,8 +244,8 @@ body.bare .onb-top, body.bare .auth > .iconbtn { padding-right: 56px; }
   <link rel="modulepreload" href="first.js">
   <link rel="modulepreload" href="pip.js">
   <script>
-    // Preload the first screen's big picture: the first onboarding card on a first visit, Pip on the welcome screen later.
-    try { if (localStorage.getItem('hd_onboarded')) { var l = document.createElement('link'); l.rel = 'preload'; l.as = 'image'; l.href = 'img/pip/pip-wave.webp'; document.head.appendChild(l); } } catch (e) {}
+    // v2: preload Pip, shown on the splash and in the Home greeting (every visitor now starts on Home).
+    try { var l = document.createElement('link'); l.rel = 'preload'; l.as = 'image'; l.href = 'img/pip/pip-wave.webp'; document.head.appendChild(l); } catch (e) {}
   </script>
 </head>
 <body>

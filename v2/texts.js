@@ -225,6 +225,8 @@ export const TEXTS = {
   orders_sub:       { en: 'Reserved, then ready at the stand, then picked up.', cs: 'Rezervováno, pak připraveno na stánku, pak vyzvednuto.' },
   no_orders_t:      { en: 'No orders yet', cs: 'Zatím žádné objednávky' },
   no_orders_b:      { en: 'Reserve something cleaned and checked at your dorm stand.', cs: 'Zarezervuj si něco vyčištěného na stánku své koleje.' },
+  guest_orders_here_t: { en: 'Demo orders on this device', cs: 'Ukázkové objednávky v tomto zařízení' },
+  guest_orders_here_b: { en: 'As a guest your orders and pickup codes stay in this browser. Sign up to keep them on your phone and laptop.', cs: 'Jako host máš objednávky a kódy jen v tomto prohlížeči. Zaregistruj se a budeš je mít v telefonu i notebooku.' },
   guest_orders_t:   { en: 'Sign up to reserve', cs: 'Pro rezervaci se zaregistruj' },
   guest_orders_b:   { en: 'Your orders and pickup codes are saved in your account.', cs: 'Objednávky a kódy se ukládají do účtu.' },
   orders_link_b:    { en: 'Things you reserved and picked up', cs: 'Co sis zarezervoval(a) a vyzvedl(a)' },

@@ -1,3 +1,5 @@
+// v2: new visitors go straight to Home as guests (professor's rule), so nothing is pre-painted any more; the app shows
+// its splash (Pip) until the Firebase SDK is ready. The v1 fast paint of onboarding and welcome is kept below, switched off.
 // Fast first paint: draws the onboarding or welcome screen before app.js and the Firebase SDK have loaded.
 // It only paints; app.js wires the buttons a moment later and repaints the same markup, so nothing jumps.
 import { TEXTS } from './texts.js';
@@ -16,7 +18,8 @@ const t = (key) => { const e = TEXTS[key]; return e ? (e[lang] || e.en) : key; }
 const ic = (name) => `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
 
 // A returning signed-in user goes straight to their last tab; app.js decides, so only paint for new visitors.
-if (!signedInBefore) {
+const PREPAINT = false; // v2: no onboarding or welcome wall before Home
+if (PREPAINT && !signedInBefore) {
   document.documentElement.lang = lang;
   document.body.classList.add('bare');
   const view = document.getElementById('view');
