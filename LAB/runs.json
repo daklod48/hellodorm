@@ -79,5 +79,48 @@
    "npm registry (qrcode-generator)",
    "independent scorer subagent"
   ]
+ },
+ {
+  "run": 2,
+  "date": "2026-11-05",
+  "verdict": "reverted",
+  "changes": [
+   "Home: account choices folded into the header as one compact row; Sell or donate and Find cleaned items side by side right under it on phones; How HelloDorm works removed from Home (it is on About us); About us, Give feedback and Launch list merged into one row; the second Choose your dorm box removed.",
+   "Phone top bar: on inner pages with Back, the Help seal steps aside so titles fit."
+  ],
+  "innovation": "Kept out of the bin: each item page says how many kg buying it keeps out of the bin, and the Dorm board ranks stands by kg kept in use with a running total (estimates from the category weights already in data/prices.js, labelled as estimates).",
+  "references": [
+   "Too Good To Go (https://www.toogoodtogo.com/en-gb): impact shown as a concrete number",
+   "Ecosia (https://www.ecosia.org/): one impact number as a community counter",
+   "Olio (https://olioapp.com/en/): neighbourhood framing. Studied 20 Oct 2026 (DESIGN-NOTES.md); not reopened, blocked by the build machine's network."
+  ],
+  "scores": {
+   "first_impression_beauty": 7,
+   "clarity_of_main_task": 7,
+   "flow_without_dead_ends": 7,
+   "trust_and_credibility": 7,
+   "mobile_quality": 7,
+   "speed": 8,
+   "accessibility": 8,
+   "delight_or_innovation": 7
+  },
+  "total": 58,
+  "top_3_flaws": [
+   "Half of the Fresh items cards on Home show empty photo tiles (a capture artifact: the photos exist but load only when scrolled near, and full-page captures do not scroll).",
+   "Checkout shows 'Pay by card: Not set up yet' as a payment option, which hurts trust at the moment of paying; the greyed Pay button needs the pickup tick first.",
+   "Phone Home still crowded above the fold (guest badge, Choose your dorm, three account buttons, two task cards); the phone item page action bar has small text."
+  ],
+  "size_bytes": 379115,
+  "size_change_pct": 0.8,
+  "ready_seconds": 0.327,
+  "tests": "contrast 0, taps 0, readable 0, dashes 0 failures; flow reached checkout and success at 390 and 1440; 0 page errors",
+  "scorer": "independent subagent (fresh, saw only RUBRIC.md, captures and metrics.json)",
+  "preview": "not published (reverted); candidate kept on local branch lab-run-02, commit 6c52014",
+  "why_reverted": "Total 58 is below the baseline 59 (clarity 6 to 7, but trust 8 to 7 and flow 8 to 7). Rule: keep only if the total rises.",
+  "tools": [
+   "Playwright with headless Chromium",
+   "tools/fake-firebase stand-in database",
+   "independent scorer subagent"
+  ]
  }
 ]
