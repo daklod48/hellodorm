@@ -801,3 +801,26 @@ body.modal-open { position: fixed; left: 0; right: 0; overflow: hidden; width: 1
   .sel > span { font-size: var(--fs-min); color: var(--grey); }
   .sel select { grid-column: 1 / -1; width: 100%; padding: 4px 0; }
 }
+
+/* Item page on a phone: the actions stay pinned above the tab bar while the page scrolls (sticky action bar),
+   so "Reserve now" is never more than a glance away. Save shows as an icon; its word stays for screen readers. */
+@media (max-width: 899px) {
+  .detail-body { display: flex; flex-direction: column; }
+  .detail-cta { position: sticky; z-index: 5; bottom: calc(var(--tab-h) + env(safe-area-inset-bottom) + 8px); margin: 6px -10px 0; padding: 8px;
+    display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 8px; align-items: stretch;
+    background: var(--glass-strong); backdrop-filter: blur(var(--glass-blur)) saturate(1.5); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.5);
+    border: 1px solid rgba(23, 117, 74, .14); border-radius: 22px; box-shadow: var(--sh-2); }
+  .detail-cta > .heart.big { width: 52px; min-height: 52px; padding: 0; justify-content: center; align-self: stretch; }
+  .detail-cta > .heart.big > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .detail-cta > .heart.big .ic { width: 22px; height: 22px; }
+  .detail-cta > :not(.heart) { grid-column: 2; min-width: 0; }
+  .detail-cta .callout { margin: 0; }
+  .detail-cta .cta-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .detail-cta .cta-row .btn, .detail-cta .cta-row .cartbtn { white-space: normal; min-height: 52px; padding: 6px 8px; font-size: var(--fs-md); gap: 0; }
+  .detail-cta .cta-row .btn > .ic, .detail-cta .cta-row .cartbtn > .ic { display: none; }
+  .detail-cta .cta-row .btn > span, .detail-cta .cta-row .cartbtn > span { align-items: center; text-align: center; }
+  .detail-cta > .btn.wide { min-height: 52px; }
+}
+@media (max-width: 899px) { .detail-cta .cta-row .btn, .detail-cta .cta-row .cartbtn, .detail-cta > .heart.big { border-radius: 16px; } }
+/* Very narrow phones (320 to 379 px, and long Czech words): only the button words, no small explanation line. */
+@media (max-width: 379px) { .detail-cta .cta-row small { display: none; } .detail-cta .cta-row .btn, .detail-cta .cta-row .cartbtn { font-size: .94rem; hyphens: none; } /* never hyphens: AI-LOG rule, no dashes in visible text */ }

@@ -21,5 +21,10 @@ for f in files:
             if DASH.search(val):
                 hits += 1
                 print(f"{f.name}:{ln}: {m.group(1)}: {val}")
+# The browser can also add dashes itself: CSS 'hyphens: auto' splits long words with a hyphen. Not allowed.
+for ln, line in enumerate((root / 'styles.css').read_text(encoding='utf-8').splitlines(), 1):
+    if re.search(r'hyphens\s*:\s*auto', line):
+        hits += 1
+        print(f"styles.css:{ln}: hyphens: auto adds visible dashes")
 print(hits)
 sys.exit(1 if hits else 0)
