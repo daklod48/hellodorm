@@ -59,7 +59,7 @@ JS = r"""
   return bad;
 }
 """
-SCREENS_GUEST = ["onboarding", "welcome", "signin", "signup", "about", "home", "browse", "item/k1", "item/s1", "checkout/k1", "saved", "cart", "stands/map", "waitlist", "profile", "myitems", "orders"]
+SCREENS_GUEST = ["onboarding", "welcome", "signin", "signup", "about", "home", "browse", "item/k1", "item/s1", "checkout/k1", "saved", "cart", "stands/map", "waitlist", "profile", "myitems", "orders", "feedback"]
 SCREENS_DEMO = ["home", "myitems", "notes", "orders", "cart", "sell", "profile", "bank"]
 fails = 0
 with sync_playwright() as pw:
@@ -88,6 +88,9 @@ with sync_playwright() as pw:
             if p.is_visible("[data-act=reserve]"): p.click("[data-act=reserve]", force=True); p.wait_for_timeout(500); run("need account dialog"); p.keyboard.press("Escape")
         if p.is_visible(".pip-btn"):
             p.click(".pip-btn >> visible=true", force=True); p.wait_for_timeout(600); run("pip faq"); p.keyboard.press("Escape")
+        p.goto(BASE + "#/feedback"); p.wait_for_timeout(500)
+        for sel in ('input[name="q1"][value="4"] + span', 'input[name="q3"][value="yes"] + span'): p.click(sel, force=True)
+        p.wait_for_timeout(700); run("feedback answers picked")
         p.goto(BASE + "#/checkout/k2"); p.wait_for_timeout(600)
         if p.locator(".confirm-pick").count():
             p.click(".confirm-pick", force=True); p.wait_for_timeout(200); run("guest checkout ticked"); p.click("#payBtn", force=True); p.wait_for_timeout(1200); run("guest pickup code")

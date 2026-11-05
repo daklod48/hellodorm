@@ -252,6 +252,14 @@ onAuthStateChanged(auth, async (user) => {
     S.orders = guestOrders();
   }
   S.ready = true;
+  // v2: someone opened a dorm mate's invite link (?dorm=thaler): choose that dorm for them unless they already have one.
+  const inv = new URLSearchParams(location.search).get('dorm');
+  if (inv && dormById(inv) && !S._invDone) {
+    S._invDone = true;
+    if (!S.prof.dorm) { savePrefs({ dorm: inv }); setTimeout(() => toast(t('invite_arrived', { d: dormById(inv).short })), 700); }
+    if (new URLSearchParams(location.search).get('ref') === 'invite') bump('invite_visit');
+    history.replaceState(null, '', location.pathname + location.hash);
+  }
   const r = parseHash();
   if (signedIn() && (!r.name || ['welcome', 'signup', 'signin', 'onboarding', 'loading'].includes(r.name))) {
     go(S.after || S.prof.lastTab || 'home', true);
@@ -646,6 +654,36 @@ async function doSignin(e) {
 }
 
 // ---------- Home ----------
+// ---------- Community and sign ups (v2, professor feedback 5 Nov 2026) ----------
+// Dorm board: stands ranked by the sample items waiting there. Social proof and a little dorm pride; honest about its source.
+function dormBoard() {
+  const me = S.prof.dorm;
+  const rows = DORMS.map((d) => ({ d, n: availableItems().filter((i) => i.dorm === d.id).length })).filter((r) => r.n).sort((a, b) => b.n - a.n || a.d.short.localeCompare(b.d.short));
+  if (!rows.length) return '';
+  const top = rows.slice(0, 5), mine = rows.findIndex((r) => r.d.id === me);
+  const show = mine >= 5 ? [...top, rows[mine]] : top, max = rows[0].n;
+  return `<div class="board">
+    <div class="board-h">${ic('trophy')}<div><h2>${t('board_t')}</h2><p class="muted small">${t('board_b')}</p></div></div>
+    <ol>${show.map((r) => `<li class="${r.d.id === me ? 'me' : ''}"><span class="rank">${rows.indexOf(r) + 1}</span><span class="who">${esc(r.d.short)}${r.d.id === me ? ` <span class="pill green">${t('your_dorm_short')}</span>` : ''}</span><span class="barwrap" aria-hidden="true"><span style="width:${Math.round((r.n / max) * 100)}%"></span></span><b>${t('n_items', { n: r.n })}</b></li>`).join('')}</ol>
+    <p class="meta small">${ic('info')}<span>${t('board_note')}</span></p>
+  </div>`;
+}
+// Invite a dorm mate: a link that opens HelloDorm with the inviter's dorm already chosen.
+function inviteCard() {
+  const d = myDorm();
+  return `<div class="invite">${ic('user-plus')}<div><b>${t('invite_t')}</b><p>${d ? t('invite_b', { d: d.short }) : t('invite_b_nodorm')}</p></div><button class="btn sun" data-act="invite">${ic('share-2')}${t('invite_btn')}</button></div>`;
+}
+function inviteLink() {
+  const u = new URL('../', location.href.split('#')[0].split('?')[0]);
+  if (S.prof.dorm) u.searchParams.set('dorm', S.prof.dorm);
+  u.searchParams.set('ref', 'invite');
+  return u.toString();
+}
+// Wishlist alerts: saved in the account, so they are a reason to sign up.
+const alertMatches = (a) => availableItems().filter((i) => (!a.cat || i.cat === a.cat) && (!a.dorm || i.dorm === a.dorm)
+  && (!a.q || (i.title.en + ' ' + i.title.cs + ' ' + i.desc.en + ' ' + i.desc.cs).toLowerCase().includes(a.q.toLowerCase())));
+const alertName = (a) => [a.q ? `"${a.q}"` : '', a.cat ? t('cat_' + a.cat) : '', a.dorm ? t('pickup_at_d', { d: dormById(a.dorm).short }) : t('all_dorms')].filter(Boolean).join(' · ');
+
 function availableItems() { return ITEMS.filter((i) => ['free', 'mine'].includes(shopState(i.id))); }
 
 SCREENS.home = () => {
@@ -702,6 +740,8 @@ SCREENS.home = () => {
       <div class="sec-head"><h2>${d ? t('at_your_stand', { d: d.short }) : t('fresh_items')}</h2><a href="#/browse">${t('see_all')}${ic('chevron-right')}</a></div>
       ${d && w ? `<p class="meta">${ic('clock')}<span>${w.open ? t('open_now_until', { t: String(new Date(w.end).getHours()) + ':00' }) : t('next_open', { w: winTxt(w) })}</span></p>` : ''}
       ${hereBlock}
+      ${dormBoard()}
+      ${inviteCard()}
       <div class="how">
         <h2>${t('how_title')}</h2>
         <ol class="how-steps">
@@ -710,6 +750,10 @@ SCREENS.home = () => {
           <li>${ic('sparkles')}<b>${t('how3_t')}</b><span>${t('how3_b')}</span></li>
           <li>${ic('ticket')}<b>${t('how4_t')}</b><span>${t('how4_b')}</span></li>
         </ol>
+      </div>
+      <div class="link-cards">
+        <a class="link-card" href="#/about">${ic('users')}<div><b>${t('about_us')}</b><span>${t('about_us_sub')}</span></div>${ic('chevron-right')}</a>
+        <a class="link-card" href="#/feedback">${ic('message-square-text')}<div><b>${t('fb_t')}</b><span>${t('fb_sub')}</span></div>${ic('chevron-right')}</a>
       </div>
       <a class="waitlist-banner" href="#/waitlist">${ic('mail')}<div><b>${t('wl_banner_t')}</b><span>${t('wl_banner_b')}</span></div>${ic('chevron-right')}</a>
     </section>`,
@@ -754,6 +798,7 @@ SCREENS.browse = () => {
           ${active ? `<button class="linkbtn" data-act="f-clear">${ic('x')}<span>${t('clear_filters')}</span></button>` : ''}
         </div>
         <p class="meta small">${ic('info')}<span>${t(signedIn() ? 'filters_saved' : 'filters_saved_guest')}</span></p>
+        ${S.prof.search || f.cat ? `<button class="btn outline sm alert-btn" data-act="alert-add">${ic('bell-plus')}${t('alert_add')}</button>` : `<p class="meta small">${ic('bell-plus')}<span>${t('alert_hint')}</span></p>`}
       </div>
       ${fd ? `<div class="sec-head"><h2>${t('pickup_at_d', { d: fd.short })}</h2><span class="count-txt">${t('n_items', { n: list.length })}</span></div>
         ${list.length ? grid(list.sort(sortFn)) : empty('search', t('no_results_t'), t('no_results_b'), `<button class="btn outline" data-act="f-clear">${t('clear_filters')}</button>`)}` : `
@@ -1074,6 +1119,7 @@ SCREENS.saved = () => {
     html: `<section>
       <h2 class="screen-h">${t('saved_title')}</h2>
       <p class="muted">${signedIn() ? t('saved_sub') : t('saved_sub_guest')}</p>
+      ${(S.prof.alerts || []).length ? `<div class="alerts"><h3>${ic('bell-plus')}${t('alerts_h')}</h3>${S.prof.alerts.map((a, i) => { const m = alertMatches(a).length; return `<div class="row-card plain">${ic('bell')}<div><b>${esc(alertName(a))}</b><p class="meta small"><span>${t('alert_matches', { n: m })}</span></p></div><button class="btn outline sm" data-act="alert-open" data-i="${i}">${t('see_all')}</button><button class="linkbtn sm" data-act="alert-remove" data-i="${i}" aria-label="${t('alert_remove')}">${ic('x')}</button></div>`; }).join('')}<p class="meta small">${ic('info')}<span>${t('alert_note')}</span></p></div>` : ''}
       ${list.length ? grid(list) : empty('heart', t('no_saved_t'), t('no_saved_b'), `<a class="btn primary" href="#/browse">${t('buy_cta')}</a>`)}
     </section>`,
   };
@@ -1432,7 +1478,10 @@ SCREENS.profile = () => {
         <a class="set-row" href="#/notes">${ic('bell')}<div><b>${t('nav_inbox')}</b><span>${t('n_unread', { n: unreadCount() })}</span></div>${ic('chevron-right')}</a>` : ''}
         <a class="set-row" href="#/stands">${ic('map')}<div><b>${t('nav_stands')}</b><span>${t('stands_sub')}</span></div>${ic('chevron-right')}</a>
         <a class="set-row" href="#/waitlist">${ic('mail')}<div><b>${t('wl_t')}</b><span>${t('wl_row')}</span></div>${ic('chevron-right')}</a>
-        <a class="set-row" href="#/about">${ic('info')}<div><b>${t('about_link')}</b><span>${t('about_row')}</span></div>${ic('chevron-right')}</a>
+        <a class="set-row" href="#/saved">${ic('bell-plus')}<div><b>${t('alerts_h')}</b><span>${t('n_alerts', { n: (S.prof.alerts || []).length })}</span></div>${ic('chevron-right')}</a>
+        <button class="set-row" data-act="invite">${ic('user-plus')}<div><b>${t('invite_t')}</b><span>${t('invite_row')}</span></div>${ic('share-2')}</button>
+        <a class="set-row" href="#/feedback">${ic('message-square-text')}<div><b>${t('fb_t')}</b><span>${t('fb_sub')}</span></div>${ic('chevron-right')}</a>
+        <a class="set-row" href="#/about">${ic('users')}<div><b>${t('about_us')}</b><span>${t('about_row')}</span></div>${ic('chevron-right')}</a>
         ${S.isManager ? `<a class="set-row" href="#/manager">${ic('shield-check')}<div><b>${t('nav_manager')}</b><span>${t('manager_row')}</span></div>${ic('chevron-right')}</a>` : ''}
       </div>
       ${signedIn() ? `<button class="btn outline wide danger" data-act="signout">${ic('log-out')}${t('sign_out')}</button>`
@@ -1522,12 +1571,25 @@ SCREENS.waitlist = () => ({
 
 // ---------- About ----------
 SCREENS.about = () => ({
-  title: t('about_link'),
+  title: t('about_us'),
   html: `<section class="narrow about">
-    ${S.mode === 'none' ? `<button class="iconbtn" data-act="back">${ic('arrow-left')}<span>${t('back')}</span></button>` : ''}
-    <h2 class="screen-h">${t('about_t')}</h2>
+    <h2 class="screen-h">${t('about_us')}</h2>
     <div class="cols"><div class="main">
-    <p class="lead">${t('about_lead')}</p>
+    <div class="story">
+      ${pipPose('wave', 'story-pip', 96)}
+      <p class="eyebrow">${t('story_eyebrow')}</p>
+      <h3>${t('story_h')}</h3>
+      <p>${t('story_p1')}</p>
+      <p>${t('story_p2')}</p>
+      <p>${t('story_p3')}</p>
+      <p class="story-team">${ic('users')}<span>${t('story_team')}</span></p>
+    </div>
+    <h3>${t('values_h')}</h3>
+    <ul class="values"><li>${ic('sparkles')}<span><b>${t('value1_t')}</b> ${t('value1_b')}</span></li><li>${ic('store')}<span><b>${t('value2_t')}</b> ${t('value2_b')}</span></li><li>${ic('leaf')}<span><b>${t('value3_t')}</b> ${t('value3_b')}</span></li></ul>
+    <div class="link-cards"><a class="link-card" href="#/feedback">${ic('message-square-text')}<div><b>${t('fb_t')}</b><span>${t('fb_sub')}</span></div>${ic('chevron-right')}</a>
+      <button class="link-card" data-act="invite">${ic('user-plus')}<div><b>${t('invite_t')}</b><span>${t('invite_row')}</span></div>${ic('share-2')}</button></div>
+    <h3>${t('about_t')}</h3>
+    <p>${t('about_lead')}</p>
     <ol class="how-steps vertical">
       <li>${ic('package')}<b>${t('how1_t')}</b><span>${t('how1_b')}</span></li>
       <li>${ic('banknote')}<b>${t('how2_t')}</b><span>${t('how2_b')}</span></li>
@@ -1547,6 +1609,48 @@ SCREENS.about = () => ({
   </section>`,
 });
 
+// ---------- Feedback form (v2) ----------
+// Answers are counted in the existing 'stats' counters (allowed by the current security rules, no console change);
+// the optional comment goes to the team's phones through ntfy. Nothing identifies the person.
+const FB_SCALE = ['q1', 'q2'], FB_CHOICE = ['q3', 'q4'], FB_OPTS = ['yes', 'maybe', 'no'];
+SCREENS.feedback = () => {
+  const sent = lsGet('hd_feedback_sent');
+  const scale = (q) => `<fieldset class="fb-q"><legend>${t('fb_' + q)}</legend><div class="scale">${[1, 2, 3, 4, 5].map((v) => `<label><input type="radio" name="${q}" value="${v}" required><span>${v}</span></label>`).join('')}</div><p class="scale-ends"><span>${t('fb_low')}</span><span>${t('fb_high')}</span></p></fieldset>`;
+  const choice = (q) => `<fieldset class="fb-q"><legend>${t('fb_' + q)}</legend><div class="choice">${FB_OPTS.map((v) => `<label><input type="radio" name="${q}" value="${v}" required><span>${t('fb_' + v)}</span></label>`).join('')}</div></fieldset>`;
+  return {
+    title: t('fb_t'),
+    html: `<section class="narrow center-col-l">
+      <h2 class="screen-h">${t('fb_t')}</h2>
+      <p class="muted">${t('fb_lead')}</p>
+      ${sent ? `<div class="callout">${ic('circle-check')}<div><b>${t('fb_thanks_t')}</b><p>${t('fb_again')}</p></div></div>` : ''}
+      <form id="fFb" class="form card-form" novalidate>
+        ${FB_SCALE.map(scale).join('')}${FB_CHOICE.map(choice).join('')}
+        <label>${t('fb_q5')}<textarea name="q5" rows="3" maxlength="500" placeholder="${t('fb_q5_ph')}"></textarea></label>
+        <p class="meta small">${ic('lock')}<span>${t('fb_privacy')}</span></p>
+        <p class="form-err" id="fFbErr" role="alert"></p>
+        <button class="btn primary wide big" type="submit">${ic('send')}${t('fb_send')}</button>
+      </form>
+    </section>`,
+    after() {
+      $('#fFb').addEventListener('change', () => { $('#fFbErr').textContent = ''; });
+      $('#fFb').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const f = new FormData(e.target);
+        const miss = [...FB_SCALE, ...FB_CHOICE].find((q) => !f.get(q));
+        if (miss) { $('#fFbErr').textContent = t('fb_err'); e.target.querySelector(`[name=${miss}]`).focus(); return; }
+        [...FB_SCALE, ...FB_CHOICE].forEach((q) => bump(`fb_${q}_${f.get(q)}`));
+        bump('fb_sent');
+        const c = (f.get('q5') || '').trim().slice(0, 500);
+        ntfy(`HelloDorm feedback: find ${f.get('q1')}/5, pickup clear ${f.get('q2')}/5, would sell ${f.get('q3')}, would buy ${f.get('q4')}${c ? `. Comment: ${c}` : ''}`);
+        lsSet('hd_feedback_sent', String(Date.now()));
+        openModal(`<div class="center-col">${pipPose('cheer', 'bob', 110)}<h2>${t('fb_thanks_t')}</h2><p>${t('fb_thanks_b')}</p></div><a class="btn primary wide" href="#/home" data-act="close">${t('tab_home')}</a>`);
+        celebrate();
+        e.target.reset();
+      });
+    },
+  };
+};
+
 // ---------- Manager mode ----------
 async function loadManager() {
   try {
@@ -1561,7 +1665,8 @@ async function loadManager() {
         Object.assign(it, { status: 'offer', offer, offerBy: 'auto', offerAt: n, answerBy: n + ANSWER_DAYS * DAY });
       }
     }
-    const names = ['visits', 'sell', 'reserve', 'waitlist', 'signup', 'users', 'demo'];
+    const fbNames = [...FB_SCALE.flatMap((q) => [1, 2, 3, 4, 5].map((v) => `fb_${q}_${v}`)), ...FB_CHOICE.flatMap((q) => FB_OPTS.map((v) => `fb_${q}_${v}`))];
+    const names = ['visits', 'sell', 'reserve', 'waitlist', 'signup', 'users', 'demo', 'orders_guest', 'fb_sent', 'invite_share', 'invite_visit', 'alert_set', ...fbNames];
     const snaps = await Promise.all(names.map((k) => getDoc(doc(db, 'stats', k)).catch(() => null)));
     S.mgr.stats = {}; names.forEach((k, i) => (S.mgr.stats[k] = (snaps[i] && snaps[i].exists() && snaps[i].data().n) || 0));
     const wl = await getDocs(collection(db, 'waitlist'));
@@ -1615,6 +1720,13 @@ SCREENS.manager = () => {
       ['eye', t('m_t_visits'), s.visits], ['circle-plus', t('m_t_sell'), s.sell], ['ticket', t('m_t_reserve'), s.reserve], ['user', t('m_t_signup'), s.signup]];
     body = `<div class="stat-grid">${tiles.map(([i, l, v]) => `<div class="stat">${ic(i === 'demo' ? 'sparkles' : i)}<b>${fmtNum(v || 0)}</b><span>${l}</span></div>`).join('')}</div>
       <p class="meta small">${ic('info')}<span>${t('m_counts_note')}</span></p>
+      <h3>${t('m_comm_h')}</h3>
+      <div class="stat-grid">${[['ticket', t('m_t_guest_orders'), s.orders_guest], ['message-square-text', t('m_t_fb'), s.fb_sent], ['share-2', t('m_t_inv_share'), s.invite_share], ['user-plus', t('m_t_inv_visit'), s.invite_visit], ['bell-plus', t('m_t_alerts'), s.alert_set]].map(([i, l, v]) => `<div class="stat">${ic(i)}<b>${fmtNum(v || 0)}</b><span>${l}</span></div>`).join('')}</div>
+      <div class="table-wrap"><table><thead><tr><th>${t('m_fb_q')}</th><th>${t('m_fb_answers')}</th></tr></thead><tbody>
+        ${FB_SCALE.map((q) => { const c = [1, 2, 3, 4, 5].map((v) => s[`fb_${q}_${v}`] || 0); const n = c.reduce((a, b) => a + b, 0); const avg = n ? (c.reduce((a, b, i) => a + b * (i + 1), 0) / n).toFixed(1) : '0'; return `<tr><td>${t('fb_' + q)}</td><td>${t('m_fb_avg', { a: avg, n })} (${c.map((x, i) => `${i + 1}: ${x}`).join(', ')})</td></tr>`; }).join('')}
+        ${FB_CHOICE.map((q) => `<tr><td>${t('fb_' + q)}</td><td>${FB_OPTS.map((v) => `${t('fb_' + v)}: ${s[`fb_${q}_${v}`] || 0}`).join(', ')}</td></tr>`).join('')}
+      </tbody></table></div>
+      <p class="meta small">${ic('info')}<span>${t('m_fb_note')}</span></p>
       <h3>${t('m_waitlist_h')}</h3>
       ${S.mgr.waitlist.length ? `<div class="table-wrap"><table><thead><tr><th>${t('f_email')}</th><th>${t('your_dorm')}</th><th>${t('m_date')}</th></tr></thead><tbody>${S.mgr.waitlist.map((w) => `<tr><td>${esc(w.email)}</td><td>${w.dormName ? `${esc(w.dormName)} <span class="pill sun">${t('m_requested')}</span>` : esc((dormById(w.dorm) || {}).short || '')}</td><td>${fmtDate(w.at)}</td></tr>`).join('')}</tbody></table></div>` : `<p class="muted">${t('m_no_wl')}</p>`}`;
   } else {
@@ -1840,6 +1952,30 @@ const A = {
     softRender();
   },
   'cat-go'(el) { savePrefs({ filters: { ...S.prof.filters, cat: el.dataset.cat }, search: '' }); go('browse'); },
+  async invite() {
+    const url = inviteLink(), d = myDorm();
+    const text = d ? t('invite_share_text', { d: d.short }) : t('invite_share_text_nodorm');
+    bump('invite_share');
+    try {
+      if (navigator.share) { await navigator.share({ title: 'HelloDorm', text, url }); return; }
+      await navigator.clipboard.writeText(url); toast(t('invite_copied'));
+    } catch (e) {
+      if (e && e.name === 'AbortError') return; // the person closed the share sheet
+      openModal(`<h2>${t('invite_t')}</h2><p>${t('invite_manual')}</p><label class="searchbar">${ic('copy')}<input readonly value="${esc(url)}" aria-label="${t('invite_t')}" onfocus="this.select()"></label><button class="btn outline wide" data-act="close">${t('close')}</button>`);
+    }
+  },
+  'alert-add'() {
+    const f = S.prof.filters;
+    if (!signedIn()) return needAccount('browse', t('alert_need_t'), t('alert_need_b'));
+    const a = { q: (S.prof.search || '').slice(0, 60), cat: f.cat || '', dorm: f.dorm || S.prof.dorm || '', at: Date.now() };
+    const list = (S.prof.alerts || []).filter((x) => !(x.q === a.q && x.cat === a.cat && x.dorm === a.dorm));
+    savePrefs({ alerts: [a, ...list].slice(0, 10) });
+    bump('alert_set');
+    toast(t('alert_saved', { n: alertMatches(a).length }));
+    render();
+  },
+  'alert-remove'(el) { savePrefs({ alerts: (S.prof.alerts || []).filter((x, i) => i !== +el.dataset.i) }); render(); },
+  'alert-open'(el) { const a = S.prof.alerts[+el.dataset.i]; savePrefs({ search: a.q, filters: { ...S.prof.filters, cat: a.cat, dorm: a.dorm } }); go('browse'); },
   'my-dorm-items'() { savePrefs({ filters: { ...S.prof.filters, dorm: S.prof.dorm } }, 300); go('browse'); },
   'f-cat'(el) { savePrefs({ filters: { ...S.prof.filters, cat: el.dataset.v } }, 300); render(); },
   'f-clear'() { savePrefs({ filters: { cat: '', cond: '', max: 0, dorm: '' }, search: '' }, 300); render(); },
@@ -1938,9 +2074,9 @@ async function confirmDrop(ref, by) {
   if (res && res.mode !== 'donate') ntfy(`New item to price: ${res.title}, ${TEXTS['cond_' + res.cond].en}, ${dormById(res.stand).short} stand`);
   return !!res;
 }
-function needAccount(after) {
+function needAccount(after, title = t('need_acc_t'), body = t('need_acc_b')) {
   S.after = after;
-  openModal(`<div class="center-col">${ic('user')}<h2>${t('need_acc_t')}</h2><p>${t('need_acc_b')}</p></div>
+  openModal(`<div class="center-col">${ic('user')}<h2>${title}</h2><p>${body}</p></div>
     <div class="stack"><a class="btn primary wide" href="#/signup">${t('sign_up')}</a><a class="btn outline wide" href="#/signin">${t('sign_in')}</a>
     <button class="btn sun wide" data-act="demo">${ic('sparkles')}${t('demo_account')}</button><button class="btn ghost wide" data-act="close">${t('not_now')}</button></div>`);
 }

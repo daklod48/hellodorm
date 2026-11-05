@@ -10,11 +10,11 @@ BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080/v2/"
 JS = r"""
 () => {
   const out = [];
-  document.querySelectorAll('a, button, input, select, textarea, [role=button], label.tickbox, label.file').forEach((el) => {
+  document.querySelectorAll('a, button, input, select, textarea, [role=button], label.tickbox, label.file, label.confirm-pick, .scale label, .choice label').forEach((el) => {
     const cs = getComputedStyle(el);
     if (cs.display === 'none' || cs.visibility === 'hidden') return;
     if (el.closest('[hidden], #modal:not(.show), #toast')) return;
-    if (el.tagName === 'INPUT' && (el.type === 'checkbox' || el.type === 'file' || el.type === 'range') && el.closest('label')) return;
+    if (el.tagName === 'INPUT' && (el.type === 'checkbox' || el.type === 'radio' || el.type === 'file' || el.type === 'range') && el.closest('label')) return;
     if (el.tagName === 'INPUT' && el.closest('.tickbox')) return;
     const r = el.getBoundingClientRect();
     if (!r.width || !r.height) return;
@@ -25,7 +25,7 @@ JS = r"""
   return out;
 }
 """
-SCREENS = ["welcome", "signin", "signup", "about", "home", "browse", "item/k1", "item/s1", "checkout/k1", "saved", "cart", "stands/list", "stands/map", "waitlist", "profile", "myitems", "orders", "notes"]
+SCREENS = ["welcome", "signin", "signup", "about", "home", "browse", "item/k1", "item/s1", "checkout/k1", "saved", "cart", "stands/list", "stands/map", "waitlist", "profile", "myitems", "orders", "notes", "feedback"]
 fails = 0
 with sync_playwright() as pw:
     b = launch(pw)
