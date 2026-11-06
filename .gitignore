@@ -7,3 +7,4 @@ review/after/
 v1/img/*.jpg
 v1/img/skipped.txt
 __pycache__/
+review/live-check/

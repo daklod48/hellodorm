@@ -15,6 +15,7 @@ Team 5, 3BE314 Entrepreneurship, Assignment 2. Clickable prototype: students sel
   - `*.old` files are the versions before the design pass (kept, never deleted).
 - `index.html` (top level): forwards the public link to the newest version (`v2/`).
 - `v2/`: copy of `v1/` made on 5 November 2026, with the phone layout and accessibility changes and the professor's feedback (dorm first, guest checkout, community). Same file names as `v1/`. Edit this one; `v1/` stays frozen.
+- `LAB/`: the Improvement Lab (rubric, captures, run log, `tracker.html`); see `HOW-IT-WORKS.md` section 14.
 - `firestore.rules`: Firestore security rules. Paste into the Firebase console after every change (the current file adds the `dormName` field for "Ask for a stand" and must be republished).
 - `tools/`: checks and build helpers. `scan-dashes.py` (no dashes in visible texts), `check-contrast.py` (every text pair 4.5:1 or more, runtime, both widths), `check-taps.py` (every tap target 44 px at 390 px), `build-critical.py v2` (copies the first screen's styles into `index.html`; run it after editing `styles.css`), `scan-emails.py` (no real email in config files), `check-readable.py` (text 12 px or more, text box outlines 3:1 or more), `browser.py` and `fake-firebase/` (shared test setup; `HD_FAKE=1` runs the checks without touching the real database).
 - `review/`: screenshots. `before/` (first build), `part1/` (after the owner's functional feedback), `after/` (after the design pass).
@@ -38,12 +39,12 @@ With the local server running and Playwright for Python installed (`pip install 
 Lighthouse: run `lighthouse http://localhost:8080/v1/ --preset=mobile` with Node installed, or Chrome DevTools > Lighthouse > Mobile.
 
 ## How to change the managers
-Managers are the people who may price or reject items, confirm drop offs and see totals.
-1. `v1/config.js`, line starting `export const MANAGER_EMAILS`: replace the placeholder emails with the real ones, lower case.
-2. `firestore.rules`, function `isManager()`: put the exact same list there.
-3. Firebase console > Firestore Database > Rules: paste the whole `firestore.rules` file and press Publish.
-4. Each manager signs up once in the app with that email (any password). "Manager mode" then appears in the menu and in Profile.
-Note: emails are not verified in this prototype, so create the manager accounts yourself before sharing the link.
+Managers are the people who may price or reject items, confirm drop offs and see totals. Since 6 November 2026 they are listed by **Firebase user ID** (UID), not by email, so no email address sits in the public files.
+1. The manager signs up once in v2 with their own email and a password.
+2. Firebase console > project hellodorm > Build > Authentication > Users: copy the **User UID** of that row.
+3. Paste it in place of `PASTE_MANAGER_UID_HERE` in `v2/config.js` (`MANAGER_UIDS`) and in `firestore.rules` (`isManager()`).
+4. Firebase console > Firestore Database > Rules: paste the whole `firestore.rules` file and press Publish.
+Full click by click steps: `HOW-IT-WORKS.md` section 15.
 
 ## Phone alerts (ntfy)
 `v1/config.js`, line `NTFY_TOPIC`. Install the free ntfy app, tap +, subscribe to that exact topic name. When a drop off is confirmed (by the student's button or by stand staff in Manager mode), every subscribed phone gets "New item to price: <title>, <condition>, <stand> stand" (no personal data), once per item. The topic name is visible in the public code, so a stranger who reads it could send fake alerts; change the name if that happens.

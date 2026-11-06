@@ -2,22 +2,21 @@ rules_version = '2';
 
 // HelloDorm v1 Firestore security rules.
 // Paste into Firebase console > Firestore Database > Rules > Publish.
-// EDIT: the manager list in isManager() must match MANAGER_EMAILS in v1/config.js (lower case).
+// EDIT: the manager list in isManager() holds Firebase user IDs (UIDs). It must match MANAGER_UIDS in v2/config.js.
+// How to read a UID and where to paste it: HOW-IT-WORKS.md section 15.
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() { return request.auth != null; }
 
+    // Managers are listed by Firebase user ID (UID), the random account number Firebase gives every account.
+    // A UID cannot be claimed by signing up with someone's email, so no email check is needed (security fix 2026-11-06,
+    // replacing the email list). Every manager permission below goes through here.
+    // EDIT: replace PASTE_MANAGER_UID_HERE with the manager's UID; add more UIDs separated by commas.
     function isManager() {
-      return signedIn()
-        && request.auth.token.email != null
-        && request.auth.token.email.lower() in [
-          'manager1@hellodorm-demo.test',
-          'manager2@example.com',
-          'manager3@example.com',
-          'manager4@example.com',
-          'manager5@example.com'
-        ];
+      return signedIn() && request.auth.uid in [
+        'PASTE_MANAGER_UID_HERE'
+      ];
     }
 
     // Prototype clock offset (manager "skip ahead 15 days"), in milliseconds.
