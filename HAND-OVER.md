@@ -87,3 +87,14 @@
 - Accounts: NONE (only placeholder addresses on reserved domains in config; no real inboxes).
 - Task ids: NONE.
 - Secrets: NONE. The Firebase web apiKey in `v2/config.js` is public configuration by design, not a secret; restriction steps above.
+
+## Update 2026-11-06: managers by Firebase user ID
+- Decision (owner): managers identified by Firebase user ID (UID), not email; the owner's address is not written anywhere in the repository (checked with a full text search: no hits).
+- Done: `firestore.rules` `isManager()` = `signedIn() && request.auth.uid in ['PASTE_MANAGER_UID_HERE']` (replaces the email list and the email_verified check); `v2/config.js` `MANAGER_UIDS = ['PASTE_MANAGER_UID_HERE']` (replaces `MANAGER_EMAILS`); `v2/app.js` shows Manager mode only to a listed UID, never to the demo; verify buttons and their texts removed.
+- Tests: listed UID opens Manager mode, another account is sent to Home; 0 page errors. Checks: dashes 0, emails 0, contrast 0 (walks Manager mode, the stand-in test manager's UID is injected in the test browser only), taps 0, readable 0. v1 unchanged.
+- Docs: `HOW-IT-WORKS.md` section 15 rewritten (make the account, read the User UID in Firebase console Build, Authentication, Users, paste in two files, publish rules, Rules Playground test, API key steps); sections 5 and 7 and `README.md` manager steps updated.
+- Owner steps: (1) Sign up in https://daklod48.github.io/hellodorm/v2/ with the manager email (the app has email and password sign in, no Google button). (2) Firebase console, hellodorm, Build, Authentication, Users, row of that email, column User UID, copy icon. (3) Replace `PASTE_MANAGER_UID_HERE` in `firestore.rules` (isManager) and `v2/config.js` (MANAGER_UIDS). (4) Firestore Database, Rules: paste the file, Publish. (5) Merge PR #2.
+- Lesson: verified email solved the claim problem but forced real inboxes into public files -> the identity choice was made before the publishing constraint was weighed -> list accounts by UID.
+- New term: UID (Firebase user ID), the random account number Firebase gives each account; cannot be claimed by signing up.
+- Files changed: `firestore.rules`, `v2/config.js`, `v2/app.js`, `v2/texts.js`, `v2/index.html` (rebuilt first screen styles), `tools/browser.py`, `tools/check-contrast.py`, `HOW-IT-WORKS.md`, `README.md`, `STATUS.md`, `HAND-OVER.md`.
+- Privacy check: names NONE; accounts NONE (placeholder UID only; the owner's address not written); task ids NONE; secrets NONE.

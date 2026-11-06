@@ -112,7 +112,7 @@ Step by step:
 The rules are the gatekeeper in front of the database. The browser code can be read by anyone (it is a public web page), so the rules, not the code, protect the data. In plain words:
 
 - **Own data only.** A signed in user can read and write only `users/<their own id>` and everything under it. Nobody can read another student's bank form, orders or inbox.
-- **Managers see every item.** Emails in the manager list may read and update any `items` document (to price, reject or confirm a drop off), but not other users' orders, notes or profiles.
+- **Managers see every item.** Accounts in the manager list (by Firebase user ID since 6 November 2026, section 15) may read and update any `items` document (to price, reject or confirm a drop off), but not other users' orders, notes or profiles.
 - **The shop state is public to read.** Whether a sample item is free, reserved or sold is one small document per item in `shop/`. Anyone can read it; a signed in user may reserve a free item, release their own, or take over a reservation whose 48 hours have run out. Managers may reset it.
 - **The prototype clock.** Managers may move the app's clock forward (`config/clock`); everyone may read it. That is how the 14 day and 30 day rules can be shown live.
 - **Waitlist and counters are write only.** Anyone can add a waitlist entry (email, dorm, or a typed dorm name for "Ask for a stand") or add one to a counter such as "visits", but only managers can read them. A visitor cannot download the list of emails.
@@ -132,7 +132,7 @@ There is no server waking up at night, so time based rules run inside the app wh
 
 ## 7. How to change things
 
-- **Managers**: `v1/config.js`, the line `MANAGER_EMAILS`, lower case emails. Put the same list into `firestore.rules` in `isManager()` and republish the rules. Each manager then signs up once with that email.
+- **Managers**: by Firebase user ID, in `v2/config.js` (`MANAGER_UIDS`) and `firestore.rules` (`isManager()`), then republish the rules. Exact steps: section 15.
 - **Prices**: `v1/data/prices.js`. `newPrice` per category, `factor` per condition, `OFFER_SHARE` (20 percent) and `RESALE_SHARE` (50 percent). Shop item prices are in `v1/data/items.js`.
 - **Dorms and stands**: `v1/data/dorms.js`. Name, address, coordinates, `full: true` to show a full stand, and `STAND_HOURS` for opening times. A backdrop picture goes into `v1/img/dorms/<id>.webp` with a line in `credits-dorms.json`.
 - **Texts**: `v1/texts.js`. Each key has `en` and `cs`. Placeholders in braces are filled by the app; `{n|item|items}` picks the plural. Run `python tools/scan-dashes.py` afterwards; it must print 0.
@@ -259,29 +259,44 @@ The owner's `LAB/MACHINE.md` describes measured improvement rounds: a frozen rub
 
 Result on 5 November 2026: baseline (round 4) 59 / 80; run 1 57 (reverted); run 2 58 (reverted); stop rule reached. The app on `main` was not changed by the Lab. Recommendations are at the end of `LAB/RUNS.md`.
 
-## 15. Security fix: managers must own their email (5 November 2026)
+## 15. Security fix: managers by Firebase user ID (5 and 6 November 2026)
 
-**The hole.** `isManager()` in `firestore.rules` checked only the email on the sign in pass. Firebase lets anyone sign up with any address without proving they own it, so a stranger could register a listed manager address and get manager rights, including reading the waitlist emails.
+**The hole.** Until 5 November 2026, `isManager()` in `firestore.rules` checked only the email on the sign in pass. Firebase lets anyone sign up with any address without proving they own it, so a stranger could register a listed manager address and get manager rights, including reading the waitlist emails.
 
-**The fix.**
-- `firestore.rules`: `isManager()` now also requires `request.auth.token.email_verified == true`. That flag becomes true only after the person clicks the link Firebase sends to that inbox. Every manager permission goes through `isManager()` (pricing and rejecting items, reading the waitlist and counters, the prototype clock, test data cleanup), so all of them now need a verified email.
-- `v2/app.js`: Manager mode appears only for a listed **and** verified email. A listed but unverified manager sees a box in Profile: **Send verification email**, then **I have verified it** (the app refreshes the sign in pass so the rules see the new flag).
-- The rules are shared by v1 and v2 (same Firebase project). v1's code is frozen, so v1 still shows its Manager menu to listed emails, but the database refuses manager reads and writes until the email is verified. Verify once in v2; the same account then works in v1 too.
+**First fix (5 Nov, replaced).** Require a verified email. Its drawback: verification needs real inboxes, and real addresses would have to sit in public files, against the owner's rule "no real emails in any config file".
 
-**The conflict to decide.** Verification needs real inboxes. The placeholder manager addresses (`manager1@hellodorm-demo.test`, `manager2@example.com` and so on) can never receive an email, so after the new rules are published nobody is a manager until real addresses are put into `v2/config.js` and `firestore.rules`. That clashes with the owner's rule "no real emails in any config file", because the repository is public. A cleaner option, ready on request: identify managers by their Firebase **user ID** (the random account number Firebase gives each account, shown in Firebase console, Authentication, Users) instead of by email. A user ID cannot be claimed by signing up, needs no verification and is not an email address.
+**Final fix (6 Nov, owner's decision).** Managers are listed by **Firebase user ID (UID)**: the random account number Firebase gives every account, for example `Xy3kQ9aB...` (28 letters and digits). A UID cannot be claimed by signing up with someone's email, it needs no verification, and it is not an email address, so it may sit in public files.
+- `firestore.rules`: `isManager()` is `signedIn() && request.auth.uid in ['PASTE_MANAGER_UID_HERE']`. Every manager permission goes through it (pricing and rejecting items, reading the waitlist and counters, the prototype clock, test data cleanup).
+- `v2/config.js`: `MANAGER_UIDS = ['PASTE_MANAGER_UID_HERE']`. The app shows Manager mode only to a signed in account whose UID is in that list (never to the demo account).
+- Until the placeholder is replaced, nobody is a manager. Everything else works as before.
+- v1 (frozen) still lists placeholder emails in its own config, so v1 never shows Manager mode to real accounts; manager work happens in v2.
 
-**Publish the new rules, click by click (owner).** These steps come from Claude Code's knowledge; the Firebase console could not be opened from the build machine, so labels may differ slightly.
-1. Before publishing: each real manager signs in on https://daklod48.github.io/hellodorm/v2/ , opens **Profile**, taps **Send verification email**, clicks the link in that email, and taps **I have verified it**. (Skip this and they lose Manager mode the moment the rules are published; they can still do it afterwards.)
-2. Open https://console.firebase.google.com and choose the project **hellodorm**.
-3. In the left menu open **Build**, then **Firestore Database**, then the **Rules** tab at the top.
-4. Click into the editor, select all the text (Ctrl+A) and delete it.
-5. Open `firestore.rules` from the repository (on GitHub: the file in `main` after the pull request is merged), copy all of it and paste it into the editor.
-6. Press **Publish**. The page shows the new time under the rules history on the left.
-7. Optional test with the **Rules Playground** button: simulate a **get** on `/waitlist/test` as an **authenticated** user with provider **password** and the email of a manager. With email verified off the result is **denied**; this is the fix working.
+**Step 1: make the manager's HelloDorm account.** The UID belongs to the account inside the HelloDorm app, not to the Google account used for the Firebase console. The app offers email and password sign in (it has no Google sign in button). Open https://daklod48.github.io/hellodorm/v2/ , tap **Sign up**, and create the account with the manager's own email and a password. Skip this if that account already exists.
 
-**Restrict the web API key, click by click (owner).** The `apiKey` in `v2/config.js` is meant to be public (it identifies the project; the rules protect the data), but restricting it stops strangers from using it from their own websites or for other Google APIs. Same caveat as above: written from knowledge, not checked against Google's pages today.
+**Step 2: read the UID in the Firebase console, click by click.** (Written from Claude Code's knowledge; the console could not be opened from the build machine, so labels may differ slightly.)
+1. Open https://console.firebase.google.com and choose the project **hellodorm**.
+2. In the left menu open **Build**, then **Authentication**.
+3. Open the **Users** tab at the top.
+4. Find the row whose **Identifier** column shows the manager's email (the search box above the table helps).
+5. In the same row, the last column **User UID** shows the UID. Point at it and press the small **copy** icon that appears next to it.
+
+**Step 3: paste the UID in two places.**
+1. `firestore.rules`, inside `isManager()`: replace `PASTE_MANAGER_UID_HERE` with the UID, keeping the single quotes, so the line reads `'Xy3kQ9aB...'`. For a second manager add a comma and another quoted UID.
+2. `v2/config.js`, line `export const MANAGER_UIDS = ['PASTE_MANAGER_UID_HERE'];`: the same UID in the same quotes. Both lists must match.
+3. Commit and push (GitHub web editor is fine); after the pull request is merged, the app part is live.
+
+**Step 4: publish the rules, click by click.**
+1. Firebase console, project **hellodorm**, left menu **Build**, then **Firestore Database**, then the **Rules** tab.
+2. Click into the editor, select all text (Ctrl+A) and delete it.
+3. Paste the whole `firestore.rules` file (with the UID from step 3) and press **Publish**.
+4. Optional test with the **Rules Playground** button: simulate a **get** on `/waitlist/test` as an **authenticated** user. With a random UID the result is **denied**; with the manager's UID it is **allowed**.
+5. Sign in to v2 with the manager account: **Manager mode** appears in the menu and in Profile.
+
+**Restrict the web API key, click by click (owner).** The `apiKey` in `v2/config.js` is meant to be public (it identifies the project; the rules protect the data), but restricting it stops strangers from using it from their own websites or for other Google APIs. Written from knowledge, not checked against Google's pages today.
 1. Open https://console.cloud.google.com/apis/credentials while signed in with the Google account that owns the Firebase project, and pick the project **hellodorm** in the project selector at the top.
 2. Under **API keys**, open the key whose value starts with `AIzaSyDgKu` (Firebase names it "Browser key (auto created by Firebase)"). If unsure, press **Show key** and compare it with `v2/config.js`.
 3. **Application restrictions**: choose **Websites** and add `https://daklod48.github.io/*`. Add `http://localhost:8080/*` as well if the team runs the app or the checks on a laptop.
 4. **API restrictions**: choose **Restrict key** and tick only **Identity Toolkit API** (sign in), **Token Service API** (keeps people signed in) and **Cloud Firestore API** (the database).
 5. Press **Save**, wait up to 5 minutes, then open the live link and try sign in and the demo account. If a page shows "requests from referer ... are blocked" or "API key not valid", recheck steps 3 and 4; if the error names another Firebase API, add that API to the list.
+
+**Checks.** `tools/check-contrast.py` still walks Manager mode: with `HD_FAKE=1` the test browser puts the stand-in test manager's UID in place of the placeholder (the real config file is not changed). Against the real database, pass a manager account that is in the UID list.

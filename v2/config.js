@@ -10,8 +10,9 @@ export const FIREBASE_CONFIG = {
   appId: '1:971938179864:web:1b4efcf397788449af0c6d',
 };
 
-// EDIT: manager emails (lower case). Keep the same list in firestore.rules (function isManager).
-export const MANAGER_EMAILS = ['manager1@hellodorm-demo.test', 'manager2@example.com', 'manager3@example.com', 'manager4@example.com', 'manager5@example.com'];
+// EDIT: managers by Firebase user ID (UID), not by email. Keep the same list in firestore.rules (function isManager).
+// How to read a UID in the Firebase console and where to paste it: HOW-IT-WORKS.md section 15.
+export const MANAGER_UIDS = ['PASTE_MANAGER_UID_HERE'];
 
 // EDIT: ntfy.sh topic for phone alerts. Managers subscribe to this name in the free ntfy app.
 export const NTFY_TOPIC = 'hellodorm-1qdfw8sunx3i6wmo1jm141mjj4dw';

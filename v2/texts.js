@@ -225,14 +225,6 @@ export const TEXTS = {
   orders_sub:       { en: 'Reserved, then ready at the stand, then picked up.', cs: 'Rezervováno, pak připraveno na stánku, pak vyzvednuto.' },
   no_orders_t:      { en: 'No orders yet', cs: 'Zatím žádné objednávky' },
   no_orders_b:      { en: 'Reserve something cleaned and checked at your dorm stand.', cs: 'Zarezervuj si něco vyčištěného na stánku své koleje.' },
-  // Security fix (5 Nov 2026): managers must verify their email
-  verify_t:         { en: 'Verify your email to use Manager mode', cs: 'Pro režim manažera ověř svůj email' },
-  verify_b:         { en: '{e} is on the manager list, but Manager mode opens only after you prove you own this inbox.', cs: '{e} je na seznamu manažerů, ale režim manažera se otevře až po ověření, že schránka patří tobě.' },
-  verify_send:      { en: 'Send verification email', cs: 'Poslat ověřovací email' },
-  verify_check:     { en: 'I have verified it', cs: 'Už jsem ověřil' },
-  verify_sent:      { en: 'Sent to {e}. Click the link in that email, then tap I have verified it.', cs: 'Odesláno na {e}. Klikni na odkaz v emailu a pak na Už jsem ověřil.' },
-  verify_ok:        { en: 'Email verified. Manager mode is on.', cs: 'Email ověřen. Režim manažera je zapnutý.' },
-  verify_not_yet:   { en: 'Not verified yet. Click the link in the email first.', cs: 'Zatím neověřeno. Nejdřív klikni na odkaz v emailu.' },
   // Round 4 (5 Nov 2026): accounts and payment like a real app
   acct_t:           { en: 'Keep your dorm, cart and orders on every device', cs: 'Měj svou kolej, košík a objednávky na všech zařízeních' },
   acct_b:           { en: 'Browse freely. To reserve, sell or set alerts, sign in, make a free account, or try the demo account.', cs: 'Prohlížej volně. Pro rezervaci, prodej nebo upozornění se přihlas, založ si účet zdarma, nebo vyzkoušej ukázkový účet.' },

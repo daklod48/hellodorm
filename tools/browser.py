@@ -32,6 +32,12 @@ def prepare(ctx):
         else:
             route.abort()
     ctx.route('https://www.gstatic.com/firebasejs/**', sdk)
+    # Managers are listed by Firebase user ID. In the stand-in, the test manager signs in as manager1@hellodorm-demo.test,
+    # whose stand-in UID is put in place of the placeholder (test browser only; the real config file is not touched).
+    def cfg(route):
+        body = route.fetch().text().replace("'PASTE_MANAGER_UID_HERE'", "'u_manager1_hellodorm_demo_test'")
+        route.fulfill(status=200, content_type='text/javascript', body=body)
+    ctx.route('**/v2/config.js', cfg)
     for pat in ('https://*.googleapis.com/**', 'https://*.firebaseapp.com/**', 'https://ntfy.sh/**'):
         ctx.route(pat, lambda r: r.abort())
     return ctx

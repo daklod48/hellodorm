@@ -39,12 +39,12 @@ With the local server running and Playwright for Python installed (`pip install 
 Lighthouse: run `lighthouse http://localhost:8080/v1/ --preset=mobile` with Node installed, or Chrome DevTools > Lighthouse > Mobile.
 
 ## How to change the managers
-Managers are the people who may price or reject items, confirm drop offs and see totals.
-1. `v2/config.js`, line starting `export const MANAGER_EMAILS`: replace the placeholder emails with the real ones, lower case.
-2. `firestore.rules`, function `isManager()`: put the exact same list there.
-3. Firebase console > Firestore Database > Rules: paste the whole `firestore.rules` file and press Publish.
-4. Each manager signs up once in the app with that email (any password). "Manager mode" then appears in the menu and in Profile.
-5. Since 5 November 2026 the email must be **verified**: in v2, Profile, tap Send verification email, click the link in the email, then I have verified it. Unverified addresses get no manager rights (security fix, `HOW-IT-WORKS.md` section 15). Placeholder addresses such as `@example.com` can never be verified.
+Managers are the people who may price or reject items, confirm drop offs and see totals. Since 6 November 2026 they are listed by **Firebase user ID** (UID), not by email, so no email address sits in the public files.
+1. The manager signs up once in v2 with their own email and a password.
+2. Firebase console > project hellodorm > Build > Authentication > Users: copy the **User UID** of that row.
+3. Paste it in place of `PASTE_MANAGER_UID_HERE` in `v2/config.js` (`MANAGER_UIDS`) and in `firestore.rules` (`isManager()`).
+4. Firebase console > Firestore Database > Rules: paste the whole `firestore.rules` file and press Publish.
+Full click by click steps: `HOW-IT-WORKS.md` section 15.
 
 ## Phone alerts (ntfy)
 `v1/config.js`, line `NTFY_TOPIC`. Install the free ntfy app, tap +, subscribe to that exact topic name. When a drop off is confirmed (by the student's button or by stand staff in Manager mode), every subscribed phone gets "New item to price: <title>, <condition>, <stand> stand" (no personal data), once per item. The topic name is visible in the public code, so a stranger who reads it could send fake alerts; change the name if that happens.
