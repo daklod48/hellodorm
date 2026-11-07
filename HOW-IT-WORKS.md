@@ -1,6 +1,6 @@
 # How HelloDorm works, explained for a smart reader with no programming background
 
-_Written 20 October 2026 for HelloDorm v1; updated 5 November 2026 for v2 (sections 2, 4, 7, 8, 10 to 13). Plain words. Every technical term is explained the first time it appears._
+_Written 20 October 2026 for HelloDorm v1; updated 5 November 2026 for v2 (sections 2, 4, 7, 8, 10 to 13) and 7 November 2026 for v3 (section 16). Plain words. Every technical term is explained the first time it appears._
 
 **Two versions side by side.** `v1/` is the published first link and is frozen: nobody edits it again. `v2/` started on 5 November 2026 as an exact copy of `v1/` and carries the design and accessibility pass described in section 10. Both use the same Firebase project. Wherever this document says `v1/`, the same file exists in `v2/`.
 
@@ -300,3 +300,73 @@ Result on 5 November 2026: baseline (round 4) 59 / 80; run 1 57 (reverted); run 
 5. Press **Save**, wait up to 5 minutes, then open the live link and try sign in and the demo account. If a page shows "requests from referer ... are blocked" or "API key not valid", recheck steps 3 and 4; if the error names another Firebase API, add that API to the list.
 
 **Checks.** `tools/check-contrast.py` still walks Manager mode: with `HD_FAKE=1` the test browser adds the stand-in test manager's UID to the list (the real config file is not changed). Against the real database, pass a manager account that is in the UID list.
+
+## 16. Round 5: search, real map and route, best stand, swap, open now, photo label, welcome and coming back (7 November 2026)
+
+**Where it lives.** Everything below is in a new folder `v3/`, made from `v2/` with the steps in section 8. `v1/` and `v2/` were not changed. The public link https://daklod48.github.io/hellodorm/ still opens v2 until the owner says "publish v3"; the test link is https://daklod48.github.io/hellodorm/v3/ once the pull request is merged (before that, open `v3/index.html` through a local server, section 11). The ideas came from testing another team's app, "found.", which had a good search and a street map but lost a tester's data and overflowed its picture labels.
+
+**1. Search that finds what exists** (`v3/search.js`, `v3/data/items.js`).
+- Before: the app compared the whole typed phrase as one piece of text, so "lamp desk" found nothing although the shop has an "LED desk lamp" (the words were in the other order).
+- Now both the typed words and the item texts are **normalised** (made comparable): small letters only, accents removed (so "rychlovarna" equals "rychlovarná"), hyphens and commas turned into spaces. The query is split into words, and an item matches when every word appears in its English or Czech title, description, category name, condition name, or its **keywords list** (synonyms in both languages written for each of the 30 items, for example kettle = konvice, rychlovarná konvice, water boiler).
+- **Ranking**: a word found in the title counts 3 points, in the category 2, elsewhere 1; equal scores show items at your dorm first. Example: "lamp" puts the two lamps above the extension cord, which only matches through its category "Lamps and electronics".
+- When no item has every word ("lamp xyzzy"), the screen says **Closest matches** and shows the items with the most words found, instead of an empty page. Only a query with no word found at all ("xyzzy") shows the empty page.
+- The Home search box sends its words to Browse and runs them there.
+
+**2. A real street map and the walking route** (`v3/map.js`, `v3/vendor/leaflet/`).
+- **Leaflet** is a free map library (licence in `v3/vendor/leaflet/LICENSE`). Version 1.9.4 was installed from npm (the public store of JavaScript code) and copied into the repository, so the app never depends on someone else's server for it. The map pictures (**tiles**: small square images that together form the map) come from OpenStreetMap, the free world map made by volunteers, with the credit "© OpenStreetMap contributors" on the map.
+- **Lazy loading**: the map code is fetched only when Stands opens or someone taps "Walking route", never on Home. Measured: Home makes 0 requests for map files; Stands fetches `map.js`, `leaflet.js` and `leaflet.css`.
+- Each stand is a round pin with the number of items waiting there; your dorm is the dark pin with a yellow ring. A tap on a pin opens a small panel with the stand, its items, Open now, "Walking route" and "See items".
+- **Walking route**: from your dorm (or your position, if you allow the browser to share it) to the stand. The app asks the free FOSSGIS route service (the German association that runs OpenStreetMap services; human page https://routing.openstreetmap.de/about.html) only when someone taps, at most once a second (their rule), and draws the green line on the map with the distance and minutes. Measured on 7 November 2026, live: Thalerova to Strahov 7.9 km, 105 minutes on foot. If the service does not answer, the app says "Route not available right now" and offers a small "Open in Google Maps" link.
+- The mouse wheel scrolls the page, not the map, until you click the map once; on a phone one finger scrolls the page until you tap the map. Popups open away from the zoom buttons, so no button covers an open panel (checked on all 16 pins).
+- If Leaflet or the tiles cannot load (blocked network, 7 seconds without a tile), Stands falls back to the old drawn map, so it never goes blank.
+- The pickup box (item page, checkout, pickup code) has its own "Walking route" button that opens a small map with the same route.
+
+**3. Best stand for my cart.** When the items in the cart wait at more than one stand, the Cart shows "Your cart is at 2 stands", each stand with how many cart items wait there, distance and whether it is open, sorted by items and then distance, and a tip such as "Pick up at Strahov: 3 of 4 items in one trip". Reason: each stand is a separate trip and a separate pickup code.
+
+**4. One tap swap.** If someone else reserves or buys an item that is in your cart or your saved list, its row suggests the most similar free item (same category, nearest stand, closest price) with a **Swap** button that replaces it in place, in one tap.
+
+**5. "Open now" on every stand.** Stand cards, the pickup box, the pickup code and the best stand card say "Open now, until 19:00", "Opens at 16:00", or "Closed, opens tomorrow at 16:00". It is always computed in Prague time (time zone Europe/Prague), even if the phone is set to another country: tested with a browser set to New York. It shows a word and an icon (open door or clock), not colour alone, so it also works for people who do not see colours well.
+
+**6. A picture for listings without a photo.** A listing with no photo shows a **label card**: the category icon and the item name on a white label, like a price tag. The label can never leave its box: the box has a fixed size, the label is at most 85 % of its height, the name has at most 3 lines and then "...", the text never gets smaller than 12 px and words are never split with a hyphen. Measured in the browser at 320, 390 and 1280 px with a long name: 0 problems.
+
+**7. The professor's test: welcome, coming back, nothing lost.**
+- **First sign up**: one welcome scene, once per account. Pip waves, a short burst of small dots and leaves in our greens is drawn by the app itself (no picture file), at most 2.4 seconds; any tap stops it; if the device asks for **reduced motion** (a phone setting for people who get dizzy from animation) there is no burst and Pip stands still. It says "Welcome to HelloDorm, <first name>" with 3 start cards: Choose your dorm, Browse items, Sell or donate. The account remembers `welcomed: true` in Firestore, so the scene does not repeat on another device.
+- **Every later sign in**: no celebration. Home shows a short "Welcome back, <first name>" card with what happened since the last visit (the account stores `lastSeenAt`, the time of the last visit): saved items still available, items in the cart, the state of your own listings, and new items at your dorm since last time.
+- **New items at your dorm** need items that really are new, and the 30 sample items never change. So v3 adds **listings**: in Manager mode, Offers, a manager can put an item that was bought from a student or donated "on sale" at its stand. It then appears in the shop for everyone and counts as new in the Welcome back card. A listing holds no personal data (item, stand, price, time).
+- **Nothing lost**: dorm, language, cart, saved items, listings and profile are stored in the account (Firestore `users/<id>`) and came back after signing out and in, in a second browser (tested: 2 cart items, dorm kept, no second welcome scene).
+- **Demo account**: starts fresh for every tester and is gone after signing out; the yellow strip on Home says so and has **Reset demo**, which empties the demo copy and fills it again from the start.
+- **Sign out** sits in one place on phone and laptop: the top of Profile, next to your name. It asks once to confirm and says that everything stays in the account.
+
+**Security rules (owner step after the merge).** `firestore.rules` has one new block: `listings` can be read by anyone and written only by managers. The new profile fields (`welcomed`, `welcomedAt`, `lastSeenAt`) are covered by the existing rule that lets each person read and write only their own `users/<id>`, so nothing else changed. Until the new rules are published in the Firebase console (section 15, step 4: paste the whole file, Publish), the live database refuses to read listings and the shop simply shows the 30 sample items; everything else works.
+
+**Tap targets 46 px.** The round 5 bar is 46 px; v2 checked 44 px. Older controls in v3 that were 44 or 45 px (top bar Cart, Inbox and Back, Help, the HelloDorm logo link, the dialog Close, the search box, filter menus, the feedback 1 to 5 buttons, "See all") and now measure 46 px. Leaflet's own zoom and popup close buttons were 30 and 24 px and are now 46 px.
+
+**Home is faster than v2, not slower.** The new features made the files Home downloads about 18 KB larger (compressed), and Lighthouse (Google's speed test, set to imitate a mid range phone on a slow mobile network) showed v3 Home about 0.2 seconds slower than v2. Three changes fixed that:
+1. **Fonts.** Each font file in the app is a **variable font**: one file that holds every weight (regular to extra bold). v2's font list named the same Inter file 5 times and the same Nunito file 3 times, and the browser downloaded each name separately. Measured on the English Home: v2 loads 9 font files (435 KB), v3 loads 3 (168 KB); the whole Home went from 855 KB in 39 requests to 601 KB in 34. v3 names each file once with its whole weight range. This was the big gain.
+2. **Code on first use.** Manager mode (`v3/manager.js`) and the Stands screen with the map and routes (`v3/stands.js`) are no longer part of `app.js`; they load the first time someone opens them. The code is the same, only moved.
+3. The two small photo lists (`img/credits.json`, `img/dorms/credits-dorms.json`) are fetched at the same time instead of one after the other.
+
+Measured on the build machine, Lighthouse 12.8.2, mobile preset, 3 runs each, local server with compression like GitHub Pages. Because this machine cannot reach Google's Firebase servers, both v2 and v3 were measured with the same stand-in Firebase files, so the two versions compare fairly with each other, but the absolute numbers are higher than on the live site (the real Firebase code is about 240 KB more).
+
+| Version | Run 1 | Run 2 | Run 3 | Largest paint | First paint | Accessibility | Best Practices |
+|---|---|---|---|---|---|---|---|
+| v2 Home | 77 | 78 | 78 | 5.6 s | 1.5 to 1.6 s | 100 | 100 |
+| v3 Home | 86 | 80 | 80 | 4.0 s | 1.4 to 1.6 s | 100 | 100 |
+
+Two cleanest runs: v2 78 and 78, v3 86 and 80. The difference between 86 and 80 is a layout shift (0.077 or 0.161: the content moves once when the loading splash is replaced by Home), which happens the same way in v2 and is left for a later round.
+
+**Fresh eyes review.** A separate AI reviewer saw only 28 screenshots (`tools/capture-round5.py`) and the owner's bars, never the code or our reasoning, and scored 6 criteria from 1 to 10. Then the lowest scoring points were fixed once and a new reviewer scored once more, and the loop stopped there (owner's rule).
+
+| Criterion | First score | Rescore |
+|---|---|---|
+| Polish | 6 | 7 |
+| Depth | 8 | 8 |
+| Motion | 6 | 6 |
+| Clarity | 6 | 6 |
+| Consistency | 7 | 7 |
+| Delight | 8 | 8 |
+| Total | 41 of 60 | 42 of 60 |
+
+Fixed after the first review: map pins and names piled up at city zoom (now nearby stands merge into one bubble with a double ring and the total items, a tap zooms in, and only your dorm's name shows at the overview: 0 overlaps measured); the confetti flew over the welcome text (now drawn inside the card, behind the words); a pickup hold could end before the stand opened (now 48 hours and always until the end of the next pickup window); "1 day 13 h" could break before "h" (now kept together). Two findings were faults of the screenshot script, not the app (a floating header in full page shots; a cart with only one stand), and the script was corrected. Still open from the rescore, for a later round: the sticky Reserve bar covers the edge of a button below the pickup box on phones; the cart's Swap panel is narrow on phones; the shop icon on the pickup code sits apart from its text on the laptop; "your dorm" and "Your dorm" are written two ways; the phone tab bar highlights nothing on Cart.
+
+**New checks.** `tools/test-round5.py` runs every round 5 test on the stand-in database (section 11) and writes `review/round5/results.md`. `tools/check-v3-states.py` runs the contrast, readable, tap (46 px), icon contrast and sideways overflow checks on every main screen and every new state, in English and Czech, at 320, 390 and 1280 px.

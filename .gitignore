@@ -8,3 +8,4 @@ v1/img/*.jpg
 v1/img/skipped.txt
 __pycache__/
 review/live-check/
+review/round5/fresh*/
