@@ -60,7 +60,7 @@ JS = r"""
 }
 """
 SCREENS_GUEST = ["onboarding", "welcome", "signin", "signup", "about", "home", "browse", "item/k1", "item/s1", "checkout/k1", "saved", "cart", "stands/map", "waitlist", "profile", "myitems", "orders", "feedback"]
-SCREENS_DEMO = ["home", "myitems", "notes", "orders", "cart", "sell", "profile", "bank"]
+SCREENS_DEMO = ["home", "myitems", "notes", "orders", "cart", "sell", "profile", "bank", "checkout/k5"]
 fails = 0
 with sync_playwright() as pw:
     b = launch(pw)

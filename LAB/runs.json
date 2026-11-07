@@ -1,0 +1,126 @@
+[
+ {
+  "run": 0,
+  "date": "2026-11-05",
+  "verdict": "baseline",
+  "changes": [
+   "Baseline: HelloDorm v2 after round 4 (accounts with demo account, Stripe test card or Demo pay, success letter)."
+  ],
+  "innovation": "",
+  "references": [],
+  "scores": {
+   "first_impression_beauty": 7,
+   "clarity_of_main_task": 6,
+   "flow_without_dead_ends": 8,
+   "trust_and_credibility": 8,
+   "mobile_quality": 7,
+   "speed": 8,
+   "accessibility": 8,
+   "delight_or_innovation": 7
+  },
+  "total": 59,
+  "top_3_flaws": [
+   "Home first view: too many competing actions (Choose your dorm, account card, Sell or donate) and no item or buy action above the phone fold.",
+   "Checkout: disabled Pay by card shows internal team text, and the pale Pay button sits below the phone fold.",
+   "Clutter: some item cards have no photo (plain tiles), the phone Home is very long, the laptop About is half credits."
+  ],
+  "size_bytes": 375967,
+  "size_change_pct": null,
+  "ready_seconds": 0.403,
+  "tests": "contrast 0, taps 0, readable 0, dashes 0 failures; flow reached checkout and success at 390 and 1440; 0 page errors",
+  "scorer": "independent subagent (fresh, saw only RUBRIC.md, captures and metrics.json)",
+  "preview": "https://daklod48.github.io/hellodorm/ (round 3 version still live; round 4 publishes with the first kept run)",
+  "tools": [
+   "Playwright with headless Chromium (captures)",
+   "tools/fake-firebase stand-in database (no real data written)",
+   "independent scorer subagent"
+  ]
+ },
+ {
+  "run": 1,
+  "date": "2026-11-05",
+  "verdict": "reverted",
+  "changes": [
+   "Home: items at your dorm moved right under the header and search, as a swipeable strip on phones; Sell or donate and Find cleaned items moved below it; account choices compacted below.",
+   "Checkout: total and pay button pinned above the tab bar on phones; the unconfigured card option says 'Coming soon. For now, use Demo pay below.'"
+  ],
+  "innovation": "Pickup pass: the pickup code also as a QR code on a ticket style card (MIT library qrcode-generator 2.0.4 by Kazuhiko Arase, loaded only on pass screens).",
+  "references": [
+   "Too Good To Go (https://www.toogoodtogo.com/en-gb): nearby offers first on Home",
+   "Vinted (https://www.vinted.co.uk/): feed first Home with search on top",
+   "Olio (https://olioapp.com/en/): what is near you first. All three studied in Chrome on 20 Oct 2026 (DESIGN-NOTES.md); not reopened, the build machine's network blocks them."
+  ],
+  "scores": {
+   "first_impression_beauty": 7,
+   "clarity_of_main_task": 6,
+   "flow_without_dead_ends": 7,
+   "trust_and_credibility": 8,
+   "mobile_quality": 7,
+   "speed": 8,
+   "accessibility": 7,
+   "delight_or_innovation": 7
+  },
+  "total": 57,
+  "top_3_flaws": [
+   "Home stacks too many blocks, and on phones Sell or donate is pushed below the item carousel, hiding one of the two main tasks.",
+   "Phone top bar is crowded (Back, Help, title, Cart, Inbox, language), so titles are cut ('Electric kett...').",
+   "Checkout depends on a tick box before the pale Pay button works, and on phones the payment choice sits under the pinned pay bar; laptop Orders and Saved leave large empty areas."
+  ],
+  "size_bytes": 431901,
+  "size_change_pct": 14.9,
+  "ready_seconds": 0.319,
+  "tests": "contrast 0, taps 0, readable 0, dashes 0 failures; flow reached checkout and success at 390 and 1440; 0 page errors",
+  "scorer": "independent subagent (fresh, saw only RUBRIC.md, captures and metrics.json)",
+  "preview": "not published (reverted); candidate kept on local branch lab-run-01, commit 81146d0",
+  "why_reverted": "Total fell from 59 to 57 (flow 8 to 7, accessibility 8 to 7). Rule: keep only if the total rises.",
+  "tools": [
+   "Playwright with headless Chromium",
+   "tools/fake-firebase stand-in database",
+   "npm registry (qrcode-generator)",
+   "independent scorer subagent"
+  ]
+ },
+ {
+  "run": 2,
+  "date": "2026-11-05",
+  "verdict": "reverted",
+  "changes": [
+   "Home: account choices folded into the header as one compact row; Sell or donate and Find cleaned items side by side right under it on phones; How HelloDorm works removed from Home (it is on About us); About us, Give feedback and Launch list merged into one row; the second Choose your dorm box removed.",
+   "Phone top bar: on inner pages with Back, the Help seal steps aside so titles fit."
+  ],
+  "innovation": "Kept out of the bin: each item page says how many kg buying it keeps out of the bin, and the Dorm board ranks stands by kg kept in use with a running total (estimates from the category weights already in data/prices.js, labelled as estimates).",
+  "references": [
+   "Too Good To Go (https://www.toogoodtogo.com/en-gb): impact shown as a concrete number",
+   "Ecosia (https://www.ecosia.org/): one impact number as a community counter",
+   "Olio (https://olioapp.com/en/): neighbourhood framing. Studied 20 Oct 2026 (DESIGN-NOTES.md); not reopened, blocked by the build machine's network."
+  ],
+  "scores": {
+   "first_impression_beauty": 7,
+   "clarity_of_main_task": 7,
+   "flow_without_dead_ends": 7,
+   "trust_and_credibility": 7,
+   "mobile_quality": 7,
+   "speed": 8,
+   "accessibility": 8,
+   "delight_or_innovation": 7
+  },
+  "total": 58,
+  "top_3_flaws": [
+   "Half of the Fresh items cards on Home show empty photo tiles (a capture artifact: the photos exist but load only when scrolled near, and full-page captures do not scroll).",
+   "Checkout shows 'Pay by card: Not set up yet' as a payment option, which hurts trust at the moment of paying; the greyed Pay button needs the pickup tick first.",
+   "Phone Home still crowded above the fold (guest badge, Choose your dorm, three account buttons, two task cards); the phone item page action bar has small text."
+  ],
+  "size_bytes": 379115,
+  "size_change_pct": 0.8,
+  "ready_seconds": 0.327,
+  "tests": "contrast 0, taps 0, readable 0, dashes 0 failures; flow reached checkout and success at 390 and 1440; 0 page errors",
+  "scorer": "independent subagent (fresh, saw only RUBRIC.md, captures and metrics.json)",
+  "preview": "not published (reverted); candidate kept on local branch lab-run-02, commit 6c52014",
+  "why_reverted": "Total 58 is below the baseline 59 (clarity 6 to 7, but trust 8 to 7 and flow 8 to 7). Rule: keep only if the total rises.",
+  "tools": [
+   "Playwright with headless Chromium",
+   "tools/fake-firebase stand-in database",
+   "independent scorer subagent"
+  ]
+ }
+]

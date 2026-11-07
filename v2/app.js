@@ -11,7 +11,7 @@ import {
   onSnapshot, runTransaction, writeBatch, increment,
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-import { FIREBASE_CONFIG, MANAGER_EMAILS, NTFY_TOPIC } from './config.js';
+import { FIREBASE_CONFIG, MANAGER_UIDS, NTFY_TOPIC, STRIPE_PAYMENT_LINK } from './config.js';
 import { TEXTS } from './texts.js';
 import { ICONS } from './icons.js';
 import { DORMS, STAND_HOURS, dormById, distanceM } from './data/dorms.js';
@@ -238,7 +238,8 @@ onAuthStateChanged(auth, async (user) => {
   S.user = user;
   if (user) {
     S.mode = user.isAnonymous ? 'demo' : 'user';
-    S.isManager = !!user.email && MANAGER_EMAILS.map((e) => e.toLowerCase()).includes(user.email.toLowerCase());
+    // Manager mode only for a listed Firebase user ID (the security rules check the same list; 2026-11-06).
+    S.isManager = !user.isAnonymous && MANAGER_UIDS.includes(user.uid);
     await loadUser();
   } else {
     S.isManager = false;
@@ -252,6 +253,8 @@ onAuthStateChanged(auth, async (user) => {
     S.orders = guestOrders();
   }
   S.ready = true;
+  // Round 4: back from Stripe's payment page (?paid=1). Finished once the orders have loaded (see listenMine).
+  if (new URLSearchParams(location.search).get('paid') === '1' && signedIn()) { S.payReturn = true; history.replaceState(null, '', location.pathname + '#/orders'); }
   // v2: someone opened a dorm mate's invite link (?dorm=thaler): choose that dorm for them unless they already have one.
   const inv = new URLSearchParams(location.search).get('dorm');
   if (inv && dormById(inv) && !S._invDone) {
@@ -284,6 +287,15 @@ async function loadUser() {
     if (S.user.email) { S.prof.email = S.user.email; S.prof.name = S.user.displayName || ''; }
   }
   S.prevSeen = S.prof.lastSeen || 0;
+  // A guest who signs in to an existing account keeps what they picked as a guest (cart, hearts, dorm if none yet).
+  const g = S.mergeGuest; S.mergeGuest = null;
+  if (g && ((g.cart || []).length || (g.hearts || []).length || (g.dorm && !S.prof.dorm))) {
+    const cart = [...S.prof.cart, ...(g.cart || []).filter((c) => !S.prof.cart.some((x) => x.id === c.id))];
+    const hearts = [...new Set([...S.prof.hearts, ...(g.hearts || [])])];
+    Object.assign(S.prof, { cart, hearts, dorm: S.prof.dorm || g.dorm || '' });
+    setDoc(ref, { cart, hearts, dorm: S.prof.dorm }, { merge: true }).catch(() => {});
+    try { localStorage.removeItem('hd_guest'); } catch (x) { /* ignore */ }
+  }
   setDoc(ref, { lastSeen: now(), email: S.user.email || '' }, { merge: true }).catch(() => {});
   listenMine();
 }
@@ -298,6 +310,7 @@ function listenMine() {
   }, () => {}));
   S.unsub.push(onSnapshot(collection(db, 'users', u, 'orders'), (qs) => {
     S.orders = sort(qs.docs.map((d) => ({ id: d.id, ...d.data() })), 'reservedAt');
+    if (S.payReturn) finishCardReturn();
     syncSoon(); softRender();
   }, () => {}));
   S.unsub.push(onSnapshot(collection(db, 'users', u, 'notes'), (qs) => {
@@ -648,12 +661,22 @@ async function doSignin(e) {
   const f = new FormData(e.target), err = $('#fErr');
   const btn = e.target.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = t('working');
   try {
+    S.mergeGuest = { ...S.prof };
     await signInWithEmailAndPassword(auth, f.get('email').trim(), f.get('password'));
     lsSet('hd_mode', '');
   } catch (x) { err.textContent = errMsg(x); btn.disabled = false; btn.textContent = t('sign_in'); }
 }
 
 // ---------- Home ----------
+// ---------- Account choices (round 4): shown on Home, never a wall ----------
+function accountChoices() {
+  return `<div class="acct">
+    <div class="acct-h">${ic('user')}<div><b>${t('acct_t')}</b><p>${t('acct_b')}</p></div></div>
+    <div class="acct-btns"><a class="btn primary" href="#/signin">${ic('lock')}${t('sign_in')}</a><a class="btn outline" href="#/signup">${ic('user-plus')}${t('sign_up')}</a>
+    <button class="btn sun" data-act="demo">${ic('sparkles')}<span>${t('demo_try')}<small>${t('demo_try_sub')}</small></span></button></div>
+  </div>`;
+}
+
 // ---------- Community and sign ups (v2, professor feedback 5 Nov 2026) ----------
 // Dorm board: stands ranked by the sample items waiting there. Social proof and a little dorm pride; honest about its source.
 function dormBoard() {
@@ -688,8 +711,8 @@ function availableItems() { return ITEMS.filter((i) => ['free', 'mine'].includes
 
 SCREENS.home = () => {
   const d = myDorm();
-  const greet = signedIn()
-    ? (S.prevSeen ? t('welcome_back', { name: firstName() }) : t('hello_name', { name: firstName() }))
+  const greet = S.mode === 'demo' ? t('hello_demo')
+    : signedIn() ? (S.prevSeen ? t('welcome_back', { name: firstName() }) : t('hello_name', { name: firstName() }))
     : t('hello_guest');
   // "Since last time" strip
   const strip = [];
@@ -724,11 +747,12 @@ SCREENS.home = () => {
           <h2>${esc(greet)}</h2>
           ${d ? `<button class="dorm-line" data-act="dorm">${ic('map-pin')}<span>${t('your_stand', { d: d.short })}${distTo(d.id) != null && S.pos ? ' · ' + fmtDist(distTo(d.id)) : ''}</span><u>${t('change')}</u></button>`
             : `<button class="btn primary big dorm-first" data-act="dorm">${ic('map-pin')}${t('choose_dorm_first')}</button><p class="dorm-why">${t('dorm_why')}</p>`}
-          ${!signedIn() ? `<p class="guest-sign"><a href="#/signin">${t('sign_in')}</a> · <a href="#/signup">${t('sign_up')}</a> <span>(${t('optional')})</span></p>` : ''}
+
         </div>
         ${bg ? `<span class="photo-credit">${bg.source === 'Google Gemini' ? t('credit_ai_short') : `${t('photo_credit')}: ${esc(bg.author)} · ${esc(bg.license)}`}</span>` : ''}
         ${pipPose(signedIn() ? 'wave' : 'curious', 'pip-greet bob', 100)}
       </div>
+      ${!signedIn() ? accountChoices() : ''}
       ${strip.length ? `<div class="since-wrap">${strip.join('')}</div>` : ''}
       ${draft && signedIn() ? `<a class="continue" href="#/sell">${ic('pencil')}<div><b>${t('continue_listing')}</b><span>${esc(draft.title || t('untitled'))} · ${t('step_of', { n: draft.step || 1, total: 5 })}</span></div>${ic('chevron-right')}</a>` : ''}
       <div class="hero-actions">
@@ -899,6 +923,7 @@ function checkoutLines(arg) {
   return it ? [it] : [];
 }
 SCREENS.checkout = (arg) => {
+  if (!signedIn()) { if (!S.seeding) setTimeout(() => needAccount('checkout/' + arg, t('pay_need_t'), t('pay_need_b')), 50); return { title: t('checkout'), html: `<section class="narrow">${empty('user', t('pay_need_t'), t('pay_need_b'), accountChoices())}</section>` }; }
   const lines = checkoutLines(arg);
   if (!lines.length) return { title: t('checkout'), html: `<section class="narrow">${empty('shopping-cart', t('cart_empty_t'), t('cart_empty_b'), `<a class="btn primary" href="#/browse">${t('buy_cta')}</a>`)}</section>` };
   const total = lines.reduce((s, x) => s + x.price, 0);
@@ -919,14 +944,17 @@ SCREENS.checkout = (arg) => {
       ${stands.length > 1 ? `<p class="meta">${ic('ticket')}<span>${t('cart_stands_note', { n: stands.length })}</span></p>` : ''}
       </div><aside class="side">
       <h2 class="co-h">${t('co_step2')}</h2>
-      <div class="demo-banner">${ic('info')}<span>${t('demo_pay_banner')}</span></div>
-      <form id="fPay" class="form card-form">
-        <label>${t('card_number')}<input name="cn" inputmode="numeric" value="4242 4242 4242 4242" autocomplete="off"></label>
-        <div class="row2"><label>${t('card_exp')}<input name="ce" value="12/29" autocomplete="off"></label><label>${t('card_cvc')}<input name="cv" value="123" autocomplete="off"></label></div>
-        <p class="note">${ic('lock')}${t('nothing_charged')}</p>
+      <form id="fPay" class="form card-form" novalidate>
+        <fieldset class="pay-pick"><legend class="sr">${t('pay_how')}</legend>
+          <label class="pay-opt ${STRIPE_PAYMENT_LINK ? '' : 'off'}"><input type="radio" name="pm" value="card" ${STRIPE_PAYMENT_LINK ? '' : 'disabled'}><span class="box">${ic('check')}</span>
+            <span><b>${ic('credit-card')}${t('pay_card_t')}</b><small>${STRIPE_PAYMENT_LINK ? t('pay_card_b') : t('pay_card_off')}</small></span></label>
+          <label class="pay-opt"><input type="radio" name="pm" value="demo" checked><span class="box">${ic('check')}</span>
+            <span><b>${ic('sparkles')}${t('pay_demo_t')}</b><small>${t('pay_demo_b')}</small></span></label>
+        </fieldset>
+        <p class="note">${ic('lock')}${t('pay_privacy')}</p>
         <div class="total"><span>${t('total')}</span><b>${czk(total)}</b></div>
         <p class="form-err" id="fErr" role="alert"></p>
-        <button class="btn primary wide big" type="submit" id="payBtn" aria-describedby="fErr">${ic('credit-card')}${t('pay_demo', { p: czk(total) })}</button>
+        <button class="btn primary wide big" type="submit" id="payBtn" aria-describedby="fErr">${ic('credit-card')}<span id="payLabel">${t('pay_demo', { p: czk(total) })}</span></button>
         <p class="meta small" id="payHint">${ic('square-check')}<span>${t('co_confirm_first')}</span></p>
       </form>
       </aside></div>
@@ -935,21 +963,24 @@ SCREENS.checkout = (arg) => {
       const boxes = () => [...document.querySelectorAll('[data-in="co-ok"]')];
       const sync = () => { const ok = boxes().every((b) => b.checked); $('#payBtn').setAttribute('aria-disabled', String(!ok)); $('#payHint').hidden = ok; if (ok) $('#fErr').textContent = ''; };
       boxes().forEach((b) => b.addEventListener('change', sync)); sync();
+      const method = () => (($('#fPay').querySelector('input[name=pm]:checked') || {}).value || 'demo');
+      $('#fPay').addEventListener('change', (e) => { if (e.target.name === 'pm') $('#payLabel').textContent = method() === 'card' ? t('pay_card_go', { p: czk(total) }) : t('pay_demo', { p: czk(total) }); });
       $('#fPay').addEventListener('submit', (e) => {
         e.preventDefault();
         const missing = boxes().find((b) => !b.checked);
         if (missing) { $('#fErr').textContent = t('co_err_confirm'); missing.focus(); missing.closest('.pickup-place').scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
-        doCheckout(arg, e.target);
+        doCheckout(arg, e.target, method());
       });
     },
   };
 };
 
-async function doCheckout(arg, form) {
+async function doCheckout(arg, form, method = 'demo') {
   const lines = checkoutLines(arg), u = uid();
+  if (!signedIn()) return needAccount('checkout/' + arg, t('pay_need_t'), t('pay_need_b'));
+  if (method === 'card' && !STRIPE_PAYMENT_LINK) method = 'demo';
   const btn = form.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = t('working');
   const n = now();
-  if (!signedIn()) return guestCheckout(arg, lines, n);
   try {
     // Hold every item in one transaction; if any was taken meanwhile, nothing is reserved.
     const taken = await runTransaction(db, async (tx) => {
@@ -979,37 +1010,77 @@ async function doCheckout(arg, form) {
       const ref = await addDoc(collection(db, 'users', u, 'orders'), {
         group, dorm: dm, code: code('P'), items: its, total: its.reduce((s, x) => s + x.price, 0),
         status: 'reserved', reservedAt: n, expiresAt: n + HOLD_H * HOUR,
+        paid: method === 'demo', payMethod: method, ...(method === 'demo' ? { paidAt: n } : {}),
       });
       ids.push(ref.id);
     }
     if (arg === 'cart') savePrefs({ cart: S.prof.cart.filter((c) => !lines.some((x) => x.id === c.id)) });
     else if (inCart(arg)) savePrefs({ cart: S.prof.cart.filter((c) => c.id !== arg) });
-    bump('orders');
-    toast(t('reserved_ok'));
+    bump('orders'); bump('pay_' + method);
+    if (method === 'card') return toStripe(group, lines.reduce((s, x) => s + x.price, 0));
     celebrate();
-    go(ids.length === 1 ? 'order/' + ids[0] : 'placed/' + group, true);
+    go('thanks/' + group, true);
   } catch (e) { fail(e); btn.disabled = false; btn.textContent = t('pay_demo', { p: czk(lines.reduce((s, x) => s + x.price, 0)) }); }
 }
 
-// Guest checkout (v2): same steps and codes, stored on this device only.
-function guestCheckout(arg, lines, n) {
-  const group = code('G');
-  const stands = [...new Set(lines.map((x) => x.dorm))];
-  const made = stands.map((dm) => {
-    const its = lines.filter((x) => x.dorm === dm).map((x) => ({ id: x.id, title: x.title, cat: x.cat, price: x.price, photoId: x.id }));
-    return { id: 'g' + code('').toLowerCase(), guest: true, group, dorm: dm, code: code('P'), items: its, total: its.reduce((s, x) => s + x.price, 0),
-      status: 'reserved', reservedAt: n, expiresAt: n + HOLD_H * HOUR };
-  });
-  saveGuestOrders([...made, ...guestOrders()]);
-  if (arg === 'cart') savePrefs({ cart: S.prof.cart.filter((c) => !lines.some((x) => x.id === c.id)) });
-  else if (inCart(arg)) savePrefs({ cart: S.prof.cart.filter((c) => c.id !== arg) });
-  bump('orders'); bump('orders_guest');
-  toast(t('reserved_ok'));
+// ---------- Card payment through a Stripe Payment Link (round 4) ----------
+// The order is saved first (items held, not yet paid); the person then types card details on Stripe's own page.
+// Stripe sends them back to .../v2/?paid=1 (set in the Payment Link), and the app marks the pending order paid.
+// Without a server the app cannot ask Stripe to confirm the payment, so it trusts that return: fine for a test mode
+// prototype, not for real money (HOW-IT-WORKS.md section 13).
+async function toStripe(group, total) {
+  lsSet('hd_pending_pay', group);
+  try { await setDoc(doc(db, 'users', uid()), { pendingPay: { group, at: now() } }, { merge: true }); } catch (e) { /* the local copy still works */ }
+  const u = new URL(STRIPE_PAYMENT_LINK);
+  u.searchParams.set('client_reference_id', group);
+  if (S.prof.email) u.searchParams.set('prefilled_email', S.prof.email);
+  if (S.prof.lang === 'cs') u.searchParams.set('locale', 'cs');
+  toast(t('pay_card_leaving', { p: czk(total) }));
+  setTimeout(() => location.assign(u.toString()), 400);
+}
+async function finishCardReturn() {
+  const group = (S.prof.pendingPay && S.prof.pendingPay.group) || lsGet('hd_pending_pay');
+  S.payReturn = false;
+  if (!group) return;
+  const mine = S.orders.filter((o) => o.group === group && o.paid === false);
+  const n = now();
+  for (const o of mine) await updateDoc(doc(db, 'users', uid(), 'orders', o.id), { paid: true, paidAt: n }).catch(() => {});
+  setDoc(doc(db, 'users', uid()), { pendingPay: null }, { merge: true }).catch(() => {});
+  try { localStorage.removeItem('hd_pending_pay'); } catch (e) { /* ignore */ }
+  bump('pay_card_done');
   celebrate();
-  go(made.length === 1 ? 'order/' + made[0].id : 'placed/' + group, true);
+  go('thanks/' + group, true);
 }
 
-// Several stands in one checkout: show every pickup code together.
+// One success screen for both ways of paying: order confirmed, a pickup code per stand naming the dorm, a thank-you letter.
+SCREENS.thanks = (group) => {
+  const list = S.orders.filter((o) => o.group === group);
+  if (!list.length) return { title: t('order_placed_t'), html: empty('ticket', t('loading'), '') };
+  if (list.some((o) => o.paid === false)) return SCREENS.order(list[0].id);
+  const names = list.flatMap((o) => orderItems(o).map((x) => L(x.title)));
+  const dear = S.mode === 'demo' ? t('letter_friend') : (firstName() || t('letter_friend'));
+  return {
+    title: t('order_placed_t'),
+    html: `<section class="narrow thanks">
+      <div class="confirmed">${ic('circle-check')}<div><h2>${t('order_confirmed_t')}</h2><p>${t(list[0].payMethod === 'card' ? 'paid_card_b' : 'paid_demo_b', { p: czk(list.reduce((s, o) => s + orderTotal(o), 0)) })}</p></div></div>
+      <div class="cols"><div class="main">
+      <h3>${t(list.length > 1 ? 'pickup_codes' : 'pickup_code')}</h3>
+      ${list.map((o) => { const d = dormById(o.dorm); return `<a class="code-card link" href="#/order/${o.id}"><p class="eyebrow">${t('pickup_at')}</p><p class="code-where">${ic('store')}<span><b>${esc(d.name)}</b></span></p><p class="meta">${ic('map-pin')}<span>${esc(d.address)}</span></p><p class="bigcode">${esc(o.code)}</p><p class="meta">${ic('package')}<span>${orderItems(o).map((x) => esc(L(x.title))).join(', ')}</span></p><p class="meta">${ic('clock')}<span>${hoursTxt()}</span></p></a>`; }).join('')}
+      </div><aside class="side">
+      <article class="letter">
+        ${pipPose('cheer', 'letter-pip', 84)}
+        <p class="eyebrow">${t('letter_eyebrow')}</p>
+        <p><b>${t('letter_dear', { name: esc(dear) })}</b></p>
+        <p>${t('letter_p1', { items: esc(names.slice(0, 3).join(', ')), d: esc(dormById(list[0].dorm).short) })}</p>
+        <p>${t('letter_p2')}</p>
+        <p class="sign">${t('letter_sign')}</p>
+      </article>
+      <a class="btn outline wide" href="#/orders">${ic('shopping-bag')}${t('all_orders')}</a>
+      </aside></div>
+    </section>`,
+  };
+};
+// Older links: #/placed/<group> shows the same screen.
 SCREENS.placed = (group) => {
   const list = S.orders.filter((o) => o.group === group);
   if (!list.length) return { title: t('order_placed_t'), html: empty('ticket', t('loading'), '') };
@@ -1039,7 +1110,11 @@ SCREENS.order = (id) => {
         <p class="meta">${ic('map-pin')}<span>${esc(d.address)}${distTo(d.id) != null ? ' · ' + fmtDist(distTo(d.id)) : ''}</span></p>
         <p class="meta">${ic('clock')}<span>${hoursTxt()}</span></p>
       </div>`;
-  if (o.status === 'reserved') {
+  if (o.status === 'reserved' && o.paid === false) {
+    body = `<div class="code-card pending">${ic('credit-card')}<h2>${t('pay_pending_t')}</h2><p>${t('pay_pending_b')}</p>
+      <div class="stack">${STRIPE_PAYMENT_LINK ? `<button class="btn primary wide" data-act="pay-again" data-group="${esc(o.group)}">${ic('credit-card')}${t('pay_card_again')}</button>` : ''}
+      <button class="btn outline wide" data-act="pay-demo-now" data-group="${esc(o.group)}">${ic('sparkles')}${t('pay_demo_instead')}</button></div></div>`;
+  } else if (o.status === 'reserved') {
     body = `
       <div class="code-card">
         <p class="eyebrow">${t('pickup_code')}</p>
@@ -1064,7 +1139,7 @@ SCREENS.order = (id) => {
     html: `<section class="narrow">
       <div class="cols"><div class="main">
       ${body}
-      ${o.status === 'reserved' ? pickupPlace(d) : ''}
+      ${o.status === 'reserved' && o.paid !== false ? pickupPlace(d) : ''}
       ${o.guest ? `<p class="meta small">${ic('smartphone')}<span>${t('guest_order_note')}</span></p>` : ''}
       </div><aside class="side">
       <div class="sum-card">${photo(it, 'thumb')}<div><b>${esc(orderTitle(o))}</b><p>${statusPill(o.status)}</p></div><b class="sum-price">${czk(orderTotal(o))}</b></div>
@@ -1106,7 +1181,7 @@ SCREENS.orders = () => {
       : `<div class="list two">${list.map((o) => `<a class="row-card" href="#/order/${o.id}">${photo(orderThumb(o), 'thumb')}
           <div><b>${esc(orderTitle(o))}</b><p class="meta">${ic('store')}<span>${t('stand_of', { d: dormById(o.dorm).short })} · ${czk(orderTotal(o))}</span></p>
           <p class="meta small">${o.status === 'reserved' ? `${ic('timer')}<span data-countdown="${o.expiresAt}">${fmtLeft(o.expiresAt - now())}</span>` : `<span>${fmtDate(o.reservedAt)}</span>`}</p></div>
-          ${statusPill(o.status)}</a>`).join('')}</div>`}
+          ${o.status === 'reserved' && o.paid === false ? `<span class="pill sun">${ic('credit-card')}${t('pay_pending_pill')}</span>` : statusPill(o.status)}</a>`).join('')}</div>`}
     </section>`,
   };
 };
@@ -1452,13 +1527,13 @@ function impact() {
 }
 SCREENS.profile = () => {
   const d = myDorm(), imp = impact();
-  const initials = (S.prof.name || (S.mode === 'guest' ? 'G' : '?')).split(/\s+/).map((x) => x[0]).join('').slice(0, 2).toUpperCase();
+  const initials = (S.mode === 'demo' ? 'D' : S.prof.name || (S.mode === 'guest' ? 'G' : '?')).split(/\s+/).map((x) => x[0]).join('').slice(0, 2).toUpperCase();
   return {
     title: t('tab_profile'),
     html: `<section class="narrow profile">
       <div class="prof-head">
         <div class="avatar">${esc(initials)}</div>
-        <div><h2>${signedIn() ? esc(S.prof.name || t('student')) : t('guest_name')}</h2>
+        <div><h2>${S.mode === 'demo' ? t('demo_badge') : signedIn() ? esc(S.prof.name || t('student')) : t('guest_name')}</h2>
           <p class="meta"><span>${S.mode === 'demo' ? t('demo_badge') : S.mode === 'guest' ? t('guest_badge') : esc(S.prof.email)}</span></p></div>
       </div>
       <div class="cols"><aside class="side first">
@@ -1835,24 +1910,30 @@ async function startDemo() {
   try {
     if (S.user && S.user.isAnonymous) { go('home'); return; }
     openModal(`<div class="center-col">${ic('sparkles', 'spin')}<h2>${t('demo_making')}</h2><p class="muted">${t('demo_making_b')}</p></div>`);
-    const lang = S.prof.lang;
+    const lang = S.prof.lang, guest = { ...S.prof };
+    const after = S.after; S.after = null;
     S.seeding = true;
     const cred = await signInAnonymously(auth);
+    // Signed in from this moment: do not wait for Firebase's sign-in announcement before continuing to checkout.
+    S.user = cred.user; S.mode = 'demo';
     const ref = doc(db, 'users', cred.user.uid);
     const ex = await getDoc(ref);
-    if (!ex.exists()) { await seedDemo(cred.user.uid, lang); await loadUser(); }
+    if (!ex.exists()) { await seedDemo(cred.user.uid, lang, guest); await loadUser(); }
     S.seeding = false;
-    lsSet('hd_mode', '');
+    lsSet('hd_mode', ''); try { localStorage.removeItem('hd_guest'); } catch (x) { /* ignore */ }
     closeModal();
-    go('home', true);
+    toast(t('demo_ready'));
+    go(after || 'home', true);
   } catch (e) { S.seeding = false; closeModal(); fail(e); }
 }
-async function seedDemo(u, lang) {
+async function seedDemo(u, lang, guest = {}) {
+  const gCart = (guest.cart || []).filter((c) => itemById(c.id));
   const n = now();
   const b = writeBatch(db);
   b.set(doc(db, 'users', u), {
-    name: 'Alex', email: '', isDemo: true, dorm: 'thaler', lang, hearts: ['t1', 'e1', 'f1'], cart: [{ id: 'k3', on: true }, { id: 's4', on: false }], lastTab: 'home', search: '',
-    filters: blankProf().filters, bank: { holder: 'Alex Demo', iban: 'CZ65 0800 0000 1920 0014 5399', bankName: 'Demo Bank' },
+    name: 'Demo account', email: '', isDemo: true, dorm: guest.dorm || 'thaler', lang, hearts: [...new Set([...(guest.hearts || []), 't1', 'e1', 'f1'])],
+    cart: gCart.length ? gCart : [{ id: 'k3', on: true }, { id: 's4', on: false }], lastTab: 'home', search: '',
+    filters: blankProf().filters, bank: { holder: 'Demo account', iban: 'CZ65 0800 0000 1920 0014 5399', bankName: 'Demo Bank' },
     draft: null, createdAt: n - 9 * DAY, lastSeen: n - 2 * DAY,
   });
   const items = collection(db, 'users', u, 'items');
@@ -1892,6 +1973,7 @@ const A = {
   'checkout-cart'() {
     if (!S.prof.cart.some((c) => c.on && shopState(c.id) === 'free')) return toast(t('cart_none_ticked'), 'err');
     bump('reserve');
+    if (!signedIn()) return needAccount('checkout/cart', t('pay_need_t'), t('pay_need_b'));
     go('checkout/cart');
   },
   'ask-stand'() { askStand(); },
@@ -1952,6 +2034,13 @@ const A = {
     softRender();
   },
   'cat-go'(el) { savePrefs({ filters: { ...S.prof.filters, cat: el.dataset.cat }, search: '' }); go('browse'); },
+  'pay-again'(el) { const g = el.dataset.group; toStripe(g, S.orders.filter((o) => o.group === g).reduce((s, o) => s + orderTotal(o), 0)); },
+  async 'pay-demo-now'(el) {
+    const g = el.dataset.group, n = now();
+    for (const o of S.orders.filter((x) => x.group === g && x.paid === false)) await updateDoc(doc(db, 'users', uid(), 'orders', o.id), { paid: true, paidAt: n, payMethod: 'demo' }).catch(fail);
+    setDoc(doc(db, 'users', uid()), { pendingPay: null }, { merge: true }).catch(() => {});
+    bump('pay_demo'); celebrate(); go('thanks/' + g, true);
+  },
   async invite() {
     const url = inviteLink(), d = myDorm();
     const text = d ? t('invite_share_text', { d: d.short }) : t('invite_share_text_nodorm');
@@ -1981,6 +2070,7 @@ const A = {
   'f-clear'() { savePrefs({ filters: { cat: '', cond: '', max: 0, dorm: '' }, search: '' }, 300); render(); },
   reserve(el) {
     bump('reserve');
+    if (!signedIn()) return needAccount('checkout/' + el.dataset.id, t('pay_need_t'), t('pay_need_b'));
     go('checkout/' + el.dataset.id);
   },
   after(el) { S.after = el.dataset.to; },
@@ -2077,8 +2167,8 @@ async function confirmDrop(ref, by) {
 function needAccount(after, title = t('need_acc_t'), body = t('need_acc_b')) {
   S.after = after;
   openModal(`<div class="center-col">${ic('user')}<h2>${title}</h2><p>${body}</p></div>
-    <div class="stack"><a class="btn primary wide" href="#/signup">${t('sign_up')}</a><a class="btn outline wide" href="#/signin">${t('sign_in')}</a>
-    <button class="btn sun wide" data-act="demo">${ic('sparkles')}${t('demo_account')}</button><button class="btn ghost wide" data-act="close">${t('not_now')}</button></div>`);
+    <div class="stack"><a class="btn primary wide" href="#/signin">${ic('lock')}${t('sign_in')}</a><a class="btn outline wide" href="#/signup">${ic('user-plus')}${t('sign_up')}</a>
+    <button class="btn sun wide" data-act="demo">${ic('sparkles')}<span>${t('demo_try')}<small>${t('demo_try_sub')}</small></span></button><button class="btn ghost wide" data-act="close">${t('not_now')}</button></div>`);
 }
 function setLang(l) { savePrefs({ lang: l }); render(); }
 // Hooks filled in by fx.js (motion); harmless when motion is off.

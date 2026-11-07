@@ -1,6 +1,6 @@
 # How HelloDorm works, explained for a smart reader with no programming background
 
-_Written 20 October 2026 for HelloDorm v1; updated 5 November 2026 for v2 (sections 2, 4, 7, 8, 10, 11 and 12). Plain words. Every technical term is explained the first time it appears._
+_Written 20 October 2026 for HelloDorm v1; updated 5 November 2026 for v2 (sections 2, 4, 7, 8, 10 to 13). Plain words. Every technical term is explained the first time it appears._
 
 **Two versions side by side.** `v1/` is the published first link and is frozen: nobody edits it again. `v2/` started on 5 November 2026 as an exact copy of `v1/` and carries the design and accessibility pass described in section 10. Both use the same Firebase project. Wherever this document says `v1/`, the same file exists in `v2/`.
 
@@ -112,7 +112,7 @@ Step by step:
 The rules are the gatekeeper in front of the database. The browser code can be read by anyone (it is a public web page), so the rules, not the code, protect the data. In plain words:
 
 - **Own data only.** A signed in user can read and write only `users/<their own id>` and everything under it. Nobody can read another student's bank form, orders or inbox.
-- **Managers see every item.** Emails in the manager list may read and update any `items` document (to price, reject or confirm a drop off), but not other users' orders, notes or profiles.
+- **Managers see every item.** Accounts in the manager list (by Firebase user ID since 6 November 2026, section 15) may read and update any `items` document (to price, reject or confirm a drop off), but not other users' orders, notes or profiles.
 - **The shop state is public to read.** Whether a sample item is free, reserved or sold is one small document per item in `shop/`. Anyone can read it; a signed in user may reserve a free item, release their own, or take over a reservation whose 48 hours have run out. Managers may reset it.
 - **The prototype clock.** Managers may move the app's clock forward (`config/clock`); everyone may read it. That is how the 14 day and 30 day rules can be shown live.
 - **Waitlist and counters are write only.** Anyone can add a waitlist entry (email, dorm, or a typed dorm name for "Ask for a stand") or add one to a counter such as "visits", but only managers can read them. A visitor cannot download the list of emails.
@@ -132,7 +132,7 @@ There is no server waking up at night, so time based rules run inside the app wh
 
 ## 7. How to change things
 
-- **Managers**: `v1/config.js`, the line `MANAGER_EMAILS`, lower case emails. Put the same list into `firestore.rules` in `isManager()` and republish the rules. Each manager then signs up once with that email.
+- **Managers**: by Firebase user ID, in `v2/config.js` (`MANAGER_UIDS`) and `firestore.rules` (`isManager()`), then republish the rules. Exact steps: section 15.
 - **Prices**: `v1/data/prices.js`. `newPrice` per category, `factor` per condition, `OFFER_SHARE` (20 percent) and `RESALE_SHARE` (50 percent). Shop item prices are in `v1/data/items.js`.
 - **Dorms and stands**: `v1/data/dorms.js`. Name, address, coordinates, `full: true` to show a full stand, and `STAND_HOURS` for opening times. A backdrop picture goes into `v1/img/dorms/<id>.webp` with a line in `credits-dorms.json`.
 - **Texts**: `v1/texts.js`. Each key has `en` and `cs`. Placeholders in braces are filled by the app; `{n|item|items}` picks the plural. Run `python tools/scan-dashes.py` afterwards; it must print 0.
@@ -222,3 +222,81 @@ The professor tested the app and wrote three things: (a) a link that needs no lo
 - New counters (Manager mode, Totals): guest demo orders, feedback forms sent, invite links shared, visits from invites, alerts set, and every feedback answer.
 
 **Optional console step (not needed for anything above).** To store feedback comments in the database instead of only sending them to phones, a new rule would be needed for a `feedback` collection. This was deliberately avoided; ask Claude Code for the rule text if you want it.
+
+## 13. Round 4: accounts and payment like a real app (5 November 2026)
+
+**Accounts.**
+- The link still lands on Home with no wall. Home shows one card with three clear choices: **Sign in**, **Sign up**, **Try the demo account** ("No sign up, ready made history").
+- The app asks for an account only when it is needed: reserving or checking out, wishlist alerts, selling. The dialog always offers the demo account next to Sign in and Sign up, and after the demo starts the person continues straight to where they were going (for example checkout).
+- **Staying signed in.** Firebase Authentication keeps a signed in person on that device after the browser is closed. This was checked in the Firebase code itself (version 12.19.0, `getAuth` starts with `indexedDBLocalPersistence`, the browser's on disk database), so no code change was needed.
+- **Same data on phone and laptop.** Dorm, saved items, cart, alerts, orders and pickup codes are stored in Firestore under `users/<id>`, so the same account shows the same data on every device.
+- **The demo reads as a demo.** New demo copies are named "Demo account" (no more "Alex"), Home says "Welcome to the demo account", and Profile shows "Demo account" even for older demo copies.
+- **What a guest picked comes along.** Sign up (new account): dorm, cart, saved items and filters move in, as before. Sign in (existing account): the guest's cart and saved items are added, and the guest's dorm is used if the account has none. Demo: the guest's dorm and cart are used for the new demo copy.
+- **Guest checkout on the device is gone** (it was round 3's answer to the professor). Checkout now needs an account or the demo; the professor can still reach a pickup code without signing up, through "Try the demo account" (one tap).
+
+**Payment.** Checkout step 2 offers two ways to pay. The app has no card fields at all any more.
+- **Pay by card** sends the person to a **Stripe Payment Link**: a ready made payment page that Stripe hosts. Card details are typed only on Stripe's page; HelloDorm never sees or stores them. Before leaving, the app saves the order (items held, marked "not paid") and remembers its order group code. The link carries `client_reference_id=<group code>` so the payment can be matched in Stripe, plus the email and language. After payment Stripe sends the person back to `.../v2/?paid=1`; the app marks the remembered order paid and shows the success screen. If the person never comes back, the order shows "Payment pending" with "Try card payment again" or "Use demo pay instead".
+- **Demo pay** marks the order paid at once.
+- Both end on the same **success screen**: "Order confirmed", one pickup code per stand naming the dorm (with address and hours), and a **thank you letter** from the team.
+- **Honest limits of a server free setup.** (1) A Payment Link has one fixed price, so the Stripe test page shows that fixed test amount, not the exact cart total. (2) The app trusts the return from Stripe instead of asking Stripe to confirm the payment. Both are fine for a test mode prototype and not for real money. The real fix is a tiny server (for example a free Cloudflare Worker) that creates a Stripe Checkout Session with the exact amount and confirms payment with a **webhook** (a message Stripe sends to that server when a payment succeeds).
+- Until a link is added, "Pay by card" shows as "Not set up yet" and only Demo pay works.
+
+**Stripe setup, click by click (owner).** Stripe's pages could not be opened from the build machine on 5 November 2026, so these steps come from Claude Code's knowledge and were not checked against Stripe today; the names of buttons may differ slightly.
+1. Go to https://dashboard.stripe.com/register and create an account (email, name, password). You do not need to activate payments or give bank details for test mode.
+2. In the dashboard, make sure you are in **test mode** (a "Test mode" switch at the top, or a "Sandbox" in newer dashboards). Test mode pages say "TEST MODE" and never charge real cards.
+3. Open **Payment Links** (left menu, or search "Payment Links") and press **+ New** (or "Create payment link").
+4. Add a product: name `HelloDorm test order`, price `100`, currency `CZK`, one time. Save the product.
+5. Open the **After payment** tab. Choose **Don't show confirmation page** and then **Redirect customers to your website**, and enter: `https://daklod48.github.io/hellodorm/v2/?paid=1`
+6. Press **Create link**. Copy the link; it starts with `https://buy.stripe.com/test_`.
+7. Send the link to Claude Code (or paste it yourself in `v2/config.js`, line `STRIPE_PAYMENT_LINK = ''`, between the quotes) and publish.
+8. To pay on the test page use Stripe's test card `4242 4242 4242 4242`, any future date (for example 12/34), any 3 digit CVC, any name.
+
+**Firebase console: nothing to do.** Email and password sign in and anonymous sign in (for the demo) are already switched on (v1 uses both). The current security rules already let each signed in person read and write only their own `users/<id>` document and its orders, including the new fields `paid`, `payMethod`, `paidAt` and `pendingPay`. Email and password sign in does not depend on the authorized domains list.
+
+## 14. The Improvement Lab (`LAB/`)
+
+The owner's `LAB/MACHINE.md` describes measured improvement rounds: a frozen rubric (`LAB/RUBRIC.md`: 8 criteria, 1 to 10), captures of every main screen at phone and laptop size (`LAB/capture.py`, using the stand-in database so nothing is written), an **independent scorer** (a fresh AI agent that sees only the rubric, the captures and the measured numbers, never the builder's reasoning), and a strict rule: a run is kept only if the total score rises. `LAB/RUNS.md` and `LAB/runs.json` log every run; `LAB/tracker.html` shows them as cards with a score chart and opens by double-click. `python LAB/build_tracker.py` rebuilds it.
+
+Result on 5 November 2026: baseline (round 4) 59 / 80; run 1 57 (reverted); run 2 58 (reverted); stop rule reached. The app on `main` was not changed by the Lab. Recommendations are at the end of `LAB/RUNS.md`.
+
+## 15. Security fix: managers by Firebase user ID (5 and 6 November 2026)
+
+**The hole.** Until 5 November 2026, `isManager()` in `firestore.rules` checked only the email on the sign in pass. Firebase lets anyone sign up with any address without proving they own it, so a stranger could register a listed manager address and get manager rights, including reading the waitlist emails.
+
+**First fix (5 Nov, replaced).** Require a verified email. Its drawback: verification needs real inboxes, and real addresses would have to sit in public files, against the owner's rule "no real emails in any config file".
+
+**Final fix (6 Nov, owner's decision).** Managers are listed by **Firebase user ID (UID)**: the random account number Firebase gives every account, for example `Xy3kQ9aB...` (28 letters and digits). A UID cannot be claimed by signing up with someone's email, it needs no verification, and it is not an email address, so it may sit in public files.
+- `firestore.rules`: `isManager()` is `signedIn() && request.auth.uid in [...]`, holding the owner's UID since 7 November 2026 (the only manager for now). Every manager permission goes through it (pricing and rejecting items, reading the waitlist and counters, the prototype clock, test data cleanup).
+- `v2/config.js`: `MANAGER_UIDS`, the same list. The app shows Manager mode only to a signed in account whose UID is in that list (never to the demo account).
+- The rules on the live database change only when `firestore.rules` is published in the Firebase console (step 4).
+- v1 (frozen) still lists placeholder emails in its own config, so v1 never shows Manager mode to real accounts; manager work happens in v2.
+
+**Step 1: make the manager's HelloDorm account.** The UID belongs to the account inside the HelloDorm app, not to the Google account used for the Firebase console. The app offers email and password sign in (it has no Google sign in button). Open https://daklod48.github.io/hellodorm/v2/ , tap **Sign up**, and create the account with the manager's own email and a password. Skip this if that account already exists.
+
+**Step 2: read the UID in the Firebase console, click by click.** (Written from Claude Code's knowledge; the console could not be opened from the build machine, so labels may differ slightly.)
+1. Open https://console.firebase.google.com and choose the project **hellodorm**.
+2. In the left menu open **Build**, then **Authentication**.
+3. Open the **Users** tab at the top.
+4. Find the row whose **Identifier** column shows the manager's email (the search box above the table helps).
+5. In the same row, the last column **User UID** shows the UID. Point at it and press the small **copy** icon that appears next to it.
+
+**Step 3: paste the UID in two places** (done for the owner on 7 November 2026; repeat to add a manager).
+1. `firestore.rules`, inside `isManager()`: add the UID in single quotes, separated from the one before by a comma.
+2. `v2/config.js`, line `export const MANAGER_UIDS = [...]`: the same UID in the same way. Both lists must match.
+3. Commit and push (GitHub web editor is fine); after the pull request is merged, the app part is live.
+
+**Step 4: publish the rules, click by click.**
+1. Firebase console, project **hellodorm**, left menu **Build**, then **Firestore Database**, then the **Rules** tab.
+2. Click into the editor, select all text (Ctrl+A) and delete it.
+3. Paste the whole `firestore.rules` file (with the UID from step 3) and press **Publish**.
+4. Optional test with the **Rules Playground** button: simulate a **get** on `/waitlist/test` as an **authenticated** user. With a random UID the result is **denied**; with the manager's UID it is **allowed**.
+5. Sign in to v2 with the manager account: **Manager mode** appears in the menu and in Profile.
+
+**Restrict the web API key, click by click (owner).** The `apiKey` in `v2/config.js` is meant to be public (it identifies the project; the rules protect the data), but restricting it stops strangers from using it from their own websites or for other Google APIs. Written from knowledge, not checked against Google's pages today.
+1. Open https://console.cloud.google.com/apis/credentials while signed in with the Google account that owns the Firebase project, and pick the project **hellodorm** in the project selector at the top.
+2. Under **API keys**, open the key whose value starts with `AIzaSyDgKu` (Firebase names it "Browser key (auto created by Firebase)"). If unsure, press **Show key** and compare it with `v2/config.js`.
+3. **Application restrictions**: choose **Websites** and add `https://daklod48.github.io/*`. Add `http://localhost:8080/*` as well if the team runs the app or the checks on a laptop.
+4. **API restrictions**: choose **Restrict key** and tick only **Identity Toolkit API** (sign in), **Token Service API** (keeps people signed in) and **Cloud Firestore API** (the database).
+5. Press **Save**, wait up to 5 minutes, then open the live link and try sign in and the demo account. If a page shows "requests from referer ... are blocked" or "API key not valid", recheck steps 3 and 4; if the error names another Firebase API, add that API to the list.
+
+**Checks.** `tools/check-contrast.py` still walks Manager mode: with `HD_FAKE=1` the test browser adds the stand-in test manager's UID to the list (the real config file is not changed). Against the real database, pass a manager account that is in the UID list.
