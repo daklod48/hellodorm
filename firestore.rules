@@ -12,10 +12,10 @@ service cloud.firestore {
     // Managers are listed by Firebase user ID (UID), the random account number Firebase gives every account.
     // A UID cannot be claimed by signing up with someone's email, so no email check is needed (security fix 2026-11-06,
     // replacing the email list). Every manager permission below goes through here.
-    // EDIT: replace PASTE_MANAGER_UID_HERE with the manager's UID; add more UIDs separated by commas.
+    // EDIT: one quoted UID per manager, separated by commas. Currently one manager (the owner), set 2026-11-07.
     function isManager() {
       return signedIn() && request.auth.uid in [
-        'PASTE_MANAGER_UID_HERE'
+        'H4LqAN23sfewbZYZekVs0Jb7KS62'
       ];
     }
 

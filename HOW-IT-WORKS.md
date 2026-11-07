@@ -266,9 +266,9 @@ Result on 5 November 2026: baseline (round 4) 59 / 80; run 1 57 (reverted); run 
 **First fix (5 Nov, replaced).** Require a verified email. Its drawback: verification needs real inboxes, and real addresses would have to sit in public files, against the owner's rule "no real emails in any config file".
 
 **Final fix (6 Nov, owner's decision).** Managers are listed by **Firebase user ID (UID)**: the random account number Firebase gives every account, for example `Xy3kQ9aB...` (28 letters and digits). A UID cannot be claimed by signing up with someone's email, it needs no verification, and it is not an email address, so it may sit in public files.
-- `firestore.rules`: `isManager()` is `signedIn() && request.auth.uid in ['PASTE_MANAGER_UID_HERE']`. Every manager permission goes through it (pricing and rejecting items, reading the waitlist and counters, the prototype clock, test data cleanup).
-- `v2/config.js`: `MANAGER_UIDS = ['PASTE_MANAGER_UID_HERE']`. The app shows Manager mode only to a signed in account whose UID is in that list (never to the demo account).
-- Until the placeholder is replaced, nobody is a manager. Everything else works as before.
+- `firestore.rules`: `isManager()` is `signedIn() && request.auth.uid in [...]`, holding the owner's UID since 7 November 2026 (the only manager for now). Every manager permission goes through it (pricing and rejecting items, reading the waitlist and counters, the prototype clock, test data cleanup).
+- `v2/config.js`: `MANAGER_UIDS`, the same list. The app shows Manager mode only to a signed in account whose UID is in that list (never to the demo account).
+- The rules on the live database change only when `firestore.rules` is published in the Firebase console (step 4).
 - v1 (frozen) still lists placeholder emails in its own config, so v1 never shows Manager mode to real accounts; manager work happens in v2.
 
 **Step 1: make the manager's HelloDorm account.** The UID belongs to the account inside the HelloDorm app, not to the Google account used for the Firebase console. The app offers email and password sign in (it has no Google sign in button). Open https://daklod48.github.io/hellodorm/v2/ , tap **Sign up**, and create the account with the manager's own email and a password. Skip this if that account already exists.
@@ -280,9 +280,9 @@ Result on 5 November 2026: baseline (round 4) 59 / 80; run 1 57 (reverted); run 
 4. Find the row whose **Identifier** column shows the manager's email (the search box above the table helps).
 5. In the same row, the last column **User UID** shows the UID. Point at it and press the small **copy** icon that appears next to it.
 
-**Step 3: paste the UID in two places.**
-1. `firestore.rules`, inside `isManager()`: replace `PASTE_MANAGER_UID_HERE` with the UID, keeping the single quotes, so the line reads `'Xy3kQ9aB...'`. For a second manager add a comma and another quoted UID.
-2. `v2/config.js`, line `export const MANAGER_UIDS = ['PASTE_MANAGER_UID_HERE'];`: the same UID in the same quotes. Both lists must match.
+**Step 3: paste the UID in two places** (done for the owner on 7 November 2026; repeat to add a manager).
+1. `firestore.rules`, inside `isManager()`: add the UID in single quotes, separated from the one before by a comma.
+2. `v2/config.js`, line `export const MANAGER_UIDS = [...]`: the same UID in the same way. Both lists must match.
 3. Commit and push (GitHub web editor is fine); after the pull request is merged, the app part is live.
 
 **Step 4: publish the rules, click by click.**
@@ -299,4 +299,4 @@ Result on 5 November 2026: baseline (round 4) 59 / 80; run 1 57 (reverted); run 
 4. **API restrictions**: choose **Restrict key** and tick only **Identity Toolkit API** (sign in), **Token Service API** (keeps people signed in) and **Cloud Firestore API** (the database).
 5. Press **Save**, wait up to 5 minutes, then open the live link and try sign in and the demo account. If a page shows "requests from referer ... are blocked" or "API key not valid", recheck steps 3 and 4; if the error names another Firebase API, add that API to the list.
 
-**Checks.** `tools/check-contrast.py` still walks Manager mode: with `HD_FAKE=1` the test browser puts the stand-in test manager's UID in place of the placeholder (the real config file is not changed). Against the real database, pass a manager account that is in the UID list.
+**Checks.** `tools/check-contrast.py` still walks Manager mode: with `HD_FAKE=1` the test browser adds the stand-in test manager's UID to the list (the real config file is not changed). Against the real database, pass a manager account that is in the UID list.

@@ -12,7 +12,7 @@ export const FIREBASE_CONFIG = {
 
 // EDIT: managers by Firebase user ID (UID), not by email. Keep the same list in firestore.rules (function isManager).
 // How to read a UID in the Firebase console and where to paste it: HOW-IT-WORKS.md section 15.
-export const MANAGER_UIDS = ['PASTE_MANAGER_UID_HERE'];
+export const MANAGER_UIDS = ['H4LqAN23sfewbZYZekVs0Jb7KS62'];
 
 // EDIT: ntfy.sh topic for phone alerts. Managers subscribe to this name in the free ntfy app.
 export const NTFY_TOPIC = 'hellodorm-1qdfw8sunx3i6wmo1jm141mjj4dw';

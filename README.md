@@ -42,7 +42,7 @@ Lighthouse: run `lighthouse http://localhost:8080/v1/ --preset=mobile` with Node
 Managers are the people who may price or reject items, confirm drop offs and see totals. Since 6 November 2026 they are listed by **Firebase user ID** (UID), not by email, so no email address sits in the public files.
 1. The manager signs up once in v2 with their own email and a password.
 2. Firebase console > project hellodorm > Build > Authentication > Users: copy the **User UID** of that row.
-3. Paste it in place of `PASTE_MANAGER_UID_HERE` in `v2/config.js` (`MANAGER_UIDS`) and in `firestore.rules` (`isManager()`).
+3. Add it to the list in `v2/config.js` (`MANAGER_UIDS`) and in `firestore.rules` (`isManager()`); both lists hold the owner's UID since 7 November 2026.
 4. Firebase console > Firestore Database > Rules: paste the whole `firestore.rules` file and press Publish.
 Full click by click steps: `HOW-IT-WORKS.md` section 15.
 
