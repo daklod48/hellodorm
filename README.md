@@ -3,6 +3,7 @@
 **Link for the report (opens the newest version on its Home page, no login): https://daklod48.github.io/hellodorm/**
 
 - v2 (5 November 2026: design pass, professor feedback, see `HOW-IT-WORKS.md` sections 10 and 12): https://daklod48.github.io/hellodorm/v2/
+- v3 (7 November 2026, round 5: search, real map and walking route, best stand, swap, open now, photo label, welcome and coming back, see `HOW-IT-WORKS.md` section 16): https://daklod48.github.io/hellodorm/v3/ (live after the round 5 pull request is merged; the public link keeps opening v2 until the owner says "publish v3").
 - v1 (first version, frozen): https://daklod48.github.io/hellodorm/v1/
 
 Team 5, 3BE314 Entrepreneurship, Assignment 2. Clickable prototype: students sell or donate dorm items at a HelloDorm stand, others buy them cleaned. Built 2026-10-20 with Claude Code from `SPEC.md`, `design-brief.md` and `prague-dorms.md`; design pass the same evening (see `DESIGN-NOTES.md`).
@@ -14,10 +15,11 @@ Team 5, 3BE314 Entrepreneurship, Assignment 2. Clickable prototype: students sel
   - `img/*.webp` (item photos from Unsplash, 600 x 600, `credits.json` lists photographer and page), `img/dorms/*.webp` (home header backdrops: Wikimedia Commons photos with `credits-dorms.json`, plus three Gemini illustrations), `img/pip/*.webp` (Pip poses, Gemini).
   - `*.old` files are the versions before the design pass (kept, never deleted).
 - `index.html` (top level): forwards the public link to the newest version (`v2/`).
-- `v2/`: copy of `v1/` made on 5 November 2026, with the phone layout and accessibility changes and the professor's feedback (dorm first, guest checkout, community). Same file names as `v1/`. Edit this one; `v1/` stays frozen.
+- `v2/`: copy of `v1/` made on 5 November 2026, with the phone layout and accessibility changes and the professor's feedback (dorm first, guest checkout, community). Same file names as `v1/`. Frozen since round 5.
+- `v3/`: copy of `v2/` made on 7 November 2026 for round 5, plus `search.js`, `map.js`, `stands.js`, `manager.js`, `fireworks.js` and `vendor/leaflet/` (Leaflet 1.9.4 from npm). Edit this one; `v1/` and `v2/` stay frozen.
 - `LAB/`: the Improvement Lab (rubric, captures, run log, `tracker.html`); see `HOW-IT-WORKS.md` section 14.
 - `firestore.rules`: Firestore security rules. Paste into the Firebase console after every change (the current file adds the `dormName` field for "Ask for a stand" and must be republished).
-- `tools/`: checks and build helpers. `scan-dashes.py` (no dashes in visible texts), `check-contrast.py` (every text pair 4.5:1 or more, runtime, both widths), `check-taps.py` (every tap target 44 px at 390 px), `build-critical.py v2` (copies the first screen's styles into `index.html`; run it after editing `styles.css`), `scan-emails.py` (no real email in config files), `check-readable.py` (text 12 px or more, text box outlines 3:1 or more), `browser.py` and `fake-firebase/` (shared test setup; `HD_FAKE=1` runs the checks without touching the real database).
+- `tools/`: checks and build helpers. `scan-dashes.py` (no dashes in visible texts), `check-contrast.py` (every text pair 4.5:1 or more, runtime, both widths), `check-taps.py` (every tap target 44 px at 390 px), `build-critical.py v2` (copies the first screen's styles into `index.html`; run it after editing `styles.css`), `scan-emails.py` (no real email in config files), `check-readable.py` (text 12 px or more, text box outlines 3:1 or more), `browser.py` and `fake-firebase/` (shared test setup; `HD_FAKE=1` runs the checks without touching the real database; `HD_LANG=cs` and `HD_WIDTH=320` change language and width). Round 5: `test-round5.py` (all round 5 tests, stand-in database), `check-v3-states.py` (contrast, readable, 46 px taps, icon contrast and overflow on every screen and new state, EN and CZ, 320, 390 and 1280 px), `capture-round5.py` (screenshots for the reviewer).
 - `review/`: screenshots. `before/` (first build), `part1/` (after the owner's functional feedback), `after/` (after the design pass).
 - `DESIGN-NOTES.md`: what was studied and borrowed, plus measured results. `IMAGE-PROMPTS.md`: every Gemini prompt. `AI-LOG.md`: corrections during the build. `HOW-IT-WORKS.md`: the whole app explained for a reader with no programming background (files, data flow, accounts, rules, deadlines, how to change things, costs).
 

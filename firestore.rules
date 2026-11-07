@@ -1,8 +1,8 @@
 rules_version = '2';
 
-// HelloDorm v1 Firestore security rules.
+// HelloDorm Firestore security rules (one project for v1, v2 and v3).
 // Paste into Firebase console > Firestore Database > Rules > Publish.
-// EDIT: the manager list in isManager() holds Firebase user IDs (UIDs). It must match MANAGER_UIDS in v2/config.js.
+// EDIT: the manager list in isManager() holds Firebase user IDs (UIDs). It must match MANAGER_UIDS in v2/config.js and v3/config.js.
 // How to read a UID and where to paste it: HOW-IT-WORKS.md section 15.
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -65,6 +65,19 @@ service cloud.firestore {
         && (resource.data.by == request.auth.uid
             || (resource.data.status == 'reserved' && resource.data.until < request.time.toMillis() + offsetMs())));
       allow delete: if isManager() || (signedIn() && resource.data.by == request.auth.uid);
+    }
+
+    // v3 (round 5, 7 Nov 2026): items the managers put on sale again (bought from students or donated). No personal data:
+    // what the item is, the stand where it waits, the price and when it was listed. Anyone reads; only managers write.
+    // Profile fields added in v3 (welcomed, welcomedAt, lastSeenAt) live in users/{uid} and are covered by the rule above.
+    match /listings/{listingId} {
+      allow read: if true;
+      allow create, update: if isManager()
+        && request.resource.data.keys().hasOnly(['title', 'desc', 'cat', 'cond', 'dorm', 'price', 'newPrice', 'photo', 'listedAt', 'kw'])
+        && request.resource.data.price is number && request.resource.data.price > 0
+        && request.resource.data.dorm is string && request.resource.data.dorm.size() <= 20
+        && (!('photo' in request.resource.data) || (request.resource.data.photo is string && request.resource.data.photo.size() < 400000));
+      allow delete: if isManager();
     }
 
     // Prototype settings (clock): anyone reads, only managers change.

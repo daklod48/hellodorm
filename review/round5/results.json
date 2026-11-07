@@ -1,0 +1,308 @@
+[
+ {
+  "test": "Search \"lamp desk\"",
+  "expected": "finds LED desk lamp",
+  "result": "Results for \"lamp desk\": ['LED desk lamp']",
+  "pass": true
+ },
+ {
+  "test": "Search \"desk lamp\"",
+  "expected": "finds LED desk lamp",
+  "result": "Results for \"desk lamp\": ['LED desk lamp']",
+  "pass": true
+ },
+ {
+  "test": "Search \"rychlovarna konvice\"",
+  "expected": "finds Electric kettle, 1.7 L",
+  "result": "Results for \"rychlovarna konvice\": ['Electric kettle, 1.7 L']",
+  "pass": true
+ },
+ {
+  "test": "Search \"konvice\"",
+  "expected": "finds Electric kettle, 1.7 L",
+  "result": "Results for \"konvice\": ['Electric kettle, 1.7 L']",
+  "pass": true
+ },
+ {
+  "test": "Search \"kettle\"",
+  "expected": "finds Electric kettle, 1.7 L",
+  "result": "Results for \"kettle\": ['Electric kettle, 1.7 L']",
+  "pass": true
+ },
+ {
+  "test": "Search \"xyzzy\"",
+  "expected": "empty page, no items",
+  "result": "0 items, empty page True",
+  "pass": true
+ },
+ {
+  "test": "Search \"lamp xyzzy\" (one wrong word)",
+  "expected": "Closest matches, lamps first",
+  "result": "Closest matches: ['LED desk lamp', 'Floor lamp', 'Extension cord, 5 sockets']",
+  "pass": true
+ },
+ {
+  "test": "Search with accents and a hyphen",
+  "expected": "same item as without",
+  "result": "['Electric kettle, 1.7 L']",
+  "pass": true
+ },
+ {
+  "test": "Home search text arrives in Browse",
+  "expected": "Browse shows \"kettle\" and the kettle",
+  "result": "/browse, box 'kettle', ['Electric kettle, 1.7 L']",
+  "pass": true
+ },
+ {
+  "test": "Map code not loaded on Home (network list)",
+  "expected": "0 requests for map.js, Leaflet, tiles or routes",
+  "result": "32 requests on Home, 0 map requests",
+  "pass": true
+ },
+ {
+  "test": "Map code loads when Stands opens",
+  "expected": "map.js, leaflet.js, leaflet.css requested",
+  "result": "3 files",
+  "pass": true
+ },
+ {
+  "test": "Stands shows a real street map with all pins",
+  "expected": "16 stand pins, my dorm highlighted, item numbers, tiles loaded",
+  "result": "16 pins, 1 highlighted, numbers 5,4,5,1,1,1,1,1,1,1,2,1,1,3,2,0, 12 tiles",
+  "pass": true
+ },
+ {
+  "test": "Map credits",
+  "expected": "\"© OpenStreetMap contributors\" and \"Routing: FOSSGIS OSRM\"",
+  "result": "Map: © OpenStreetMap contributors · Routing: FOSSGIS OSRM · Leaflet © OpenStreetMap contributors",
+  "pass": true
+ },
+ {
+  "test": "Mouse wheel zooms only after a click",
+  "expected": "zoom same before the click, changes after",
+  "result": "zoom 11 -> 11 before click, 15 after",
+  "pass": true
+ },
+ {
+  "test": "No button on top of an open popup",
+  "expected": "0 overlaps over 16 popups",
+  "result": "0 overlaps (worst popup)",
+  "pass": true
+ },
+ {
+  "test": "Walking route Thalerova to Strahov (live FOSSGIS service)",
+  "expected": "line on the map with km and minutes",
+  "result": "7.9 km, 105 min, 2 line drawn, 0.9 s, text \"7.9 km · 105 min walk\"",
+  "pass": true
+ },
+ {
+  "test": "At most 1 route request per second",
+  "expected": "gap between requests at least 1 s",
+  "result": "2 requests, gaps [1.0]",
+  "pass": true
+ },
+ {
+  "test": "Route service does not answer",
+  "expected": "\"Route not available right now\" and an Open in Google Maps link",
+  "result": "Route not available right now | https://www.google.com/maps/dir/?api=1&origin=50.09143,14.48",
+  "pass": true
+ },
+ {
+  "test": "Walking route in the item pickup box",
+  "expected": "map and route panel open inside the pickup box",
+  "result": "map 1, panel 1",
+  "pass": true
+ },
+ {
+  "test": "Fallback when Leaflet cannot load",
+  "expected": "drawn map shown, Stands not blank",
+  "result": "drawn map 1, note 1",
+  "pass": true
+ },
+ {
+  "test": "Fallback when map tiles cannot load",
+  "expected": "drawn map after 7 s",
+  "result": "drawn map 1",
+  "pass": true
+ },
+ {
+  "test": "Cart at 2 stands: best stand card",
+  "expected": "Strahov 3, Thalerova 1; tip \"Pick up at Strahov: 3 of 4 items in one trip\"",
+  "result": "Your cart is at 2 stands [('strahov', '3'), ('thaler', '1')] | Pick up at Strahov: 3 of 4 items in one trip",
+  "pass": true
+ },
+ {
+  "test": "Sold cart item shows Swap",
+  "expected": "row of k1 shows a similar available kitchen item",
+  "result": "swap to k2",
+  "pass": true
+ },
+ {
+  "test": "One tap Swap replaces it",
+  "expected": "cart has k2 instead of k1",
+  "result": "['k2', 'k4', 'e5', 'f3']",
+  "pass": true
+ },
+ {
+  "test": "Sold saved item shows Swap and replaces it",
+  "expected": "Saved row offers Swap, k1 replaced",
+  "result": "True, hearts ['k2']",
+  "pass": true
+ },
+ {
+  "test": "Open now at 15:00 Prague (Wed, hours 16:00 to 19:00)",
+  "expected": "Opens at 16:00",
+  "result": "\"Opens at 16:00\", icon 1",
+  "pass": true
+ },
+ {
+  "test": "Open now at 21:00 Prague (Wed, hours 16:00 to 19:00)",
+  "expected": "Closed, opens tomorrow at 16:00",
+  "result": "\"Closed, opens tomorrow at 16:00\", icon 1",
+  "pass": true
+ },
+ {
+  "test": "Open now at 17:30 Prague (Wed, hours 16:00 to 19:00)",
+  "expected": "Open now, until 19:00",
+  "result": "\"Open now, until 19:00\", icon 1",
+  "pass": true
+ },
+ {
+  "test": "Photo label inside its box at 320 px",
+  "expected": "overlaps 0, label at most 85 %, 3 lines, 12 px or more",
+  "result": "1 label cards on the last page, problems 0 []",
+  "pass": true
+ },
+ {
+  "test": "Photo label inside its box at 390 px",
+  "expected": "overlaps 0, label at most 85 %, 3 lines, 12 px or more",
+  "result": "1 label cards on the last page, problems 0 []",
+  "pass": true
+ },
+ {
+  "test": "Photo label inside its box at 1280 px",
+  "expected": "overlaps 0, label at most 85 %, 3 lines, 12 px or more",
+  "result": "1 label cards on the last page, problems 0 []",
+  "pass": true
+ },
+ {
+  "test": "[390] Link opens logged out on Home",
+  "expected": "Home, account choices with Demo account",
+  "result": "screen home, demo button 1",
+  "pass": true
+ },
+ {
+  "test": "[390] Demo strip and Reset demo",
+  "expected": "strip says fresh for every tester; Reset brings back the 2 demo cart items",
+  "result": "\"Demo account. It starts fresh for every tester and is gone after you s\", cart after reset 2",
+  "pass": true
+ },
+ {
+  "test": "[390] Demo: sign out and back in starts fresh",
+  "expected": "new demo copy (other id), sign out asked to confirm",
+  "result": "confirm True, same copy False",
+  "pass": true
+ },
+ {
+  "test": "[390] Sign up shows the welcome scene",
+  "expected": "Pip, \"Welcome to HelloDorm, Jana\", 3 start cards, burst gone within 2.5 s, welcomed stored",
+  "result": "\"Welcome to HelloDorm, Jana\", cards 3, burst 1 then 0, welcomed True",
+  "pass": true
+ },
+ {
+  "test": "[390] Second sign in: Welcome back, no scene",
+  "expected": "no scene; card: 1 of 1 saved available, 2 in cart, 0 new",
+  "result": "scene 0, card 1, saved 1, cart 2, new 0",
+  "pass": true
+ },
+ {
+  "test": "[390] Second device: cart and dorm come back",
+  "expected": "2 cart items, dorm kept, no welcome scene",
+  "result": "cart rows 2, scene 0, dorm line 1",
+  "pass": true
+ },
+ {
+  "test": "[390] Third sign in after 1 new item at my dorm",
+  "expected": "\"1 new item\" shown, still no scene",
+  "result": "\"1 new item at Thalerova since last time\", new 1, scene 0",
+  "pass": true
+ },
+ {
+  "test": "[390] Page errors in the professor flow",
+  "expected": "0",
+  "result": "0",
+  "pass": true
+ },
+ {
+  "test": "[1280] Link opens logged out on Home",
+  "expected": "Home, account choices with Demo account",
+  "result": "screen home, demo button 1",
+  "pass": true
+ },
+ {
+  "test": "[1280] Demo strip and Reset demo",
+  "expected": "strip says fresh for every tester; Reset brings back the 2 demo cart items",
+  "result": "\"Demo account. It starts fresh for every tester and is gone after you s\", cart after reset 2",
+  "pass": true
+ },
+ {
+  "test": "[1280] Demo: sign out and back in starts fresh",
+  "expected": "new demo copy (other id), sign out asked to confirm",
+  "result": "confirm True, same copy False",
+  "pass": true
+ },
+ {
+  "test": "[1280] Sign up shows the welcome scene",
+  "expected": "Pip, \"Welcome to HelloDorm, Jana\", 3 start cards, burst gone within 2.5 s, welcomed stored",
+  "result": "\"Welcome to HelloDorm, Jana\", cards 3, burst 1 then 0, welcomed True",
+  "pass": true
+ },
+ {
+  "test": "[1280] Second sign in: Welcome back, no scene",
+  "expected": "no scene; card: 1 of 1 saved available, 2 in cart, 0 new",
+  "result": "scene 0, card 1, saved 1, cart 2, new 0",
+  "pass": true
+ },
+ {
+  "test": "[1280] Second device: cart and dorm come back",
+  "expected": "2 cart items, dorm kept, no welcome scene",
+  "result": "cart rows 2, scene 0, dorm line 1",
+  "pass": true
+ },
+ {
+  "test": "[1280] Third sign in after 1 new item at my dorm",
+  "expected": "\"1 new item\" shown, still no scene",
+  "result": "\"1 new item at Thalerova since last time\", new 1, scene 0",
+  "pass": true
+ },
+ {
+  "test": "[1280] Page errors in the professor flow",
+  "expected": "0",
+  "result": "0",
+  "pass": true
+ },
+ {
+  "test": "Reduced motion: welcome scene without animation",
+  "expected": "still card, no burst canvas, no Pip animation",
+  "result": "motion reduced, canvas 0, pip anim none",
+  "pass": true
+ },
+ {
+  "test": "A tap skips the celebration",
+  "expected": "burst canvas removed at once",
+  "result": "1 then 0",
+  "pass": true
+ },
+ {
+  "test": "Manager puts a donated item on sale",
+  "expected": "listing created, found by search in Browse",
+  "result": "1 ready to sell, 1 listing, search finds ['Denim jacket']",
+  "pass": true
+ },
+ {
+  "test": "Page errors (manager)",
+  "expected": "0",
+  "result": "0",
+  "pass": true
+ }
+]
