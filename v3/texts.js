@@ -735,6 +735,8 @@ export const TEXTS = {
   map_credit_route: { en: 'Routing: FOSSGIS OSRM', cs: 'Trasy: FOSSGIS OSRM' },
   map_fallback:     { en: 'The street map could not load right now, so this is our simple drawn map (north at the top, the blue line is the Vltava).', cs: 'Mapa ulic se teď nenačetla, proto je tu naše jednoduchá kreslená mapa (sever nahoře, modrá čára je Vltava).' },
   walk_route:       { en: 'Walking route', cs: 'Trasa pěšky' },
+  group_label:      { en: '{d} and {n} more', cs: '{d} a další {n}' },
+  group_alt:        { en: '{n} stands close together, tap to zoom in', cs: '{n|stánek|stánky|stánků} blízko sebe, klepni pro přiblížení' },
   see_items:        { en: 'See items', cs: 'Zobrazit věci' },
   route_hint:       { en: 'Tap Walking route on a stand to see the way from your dorm, with distance and minutes.', cs: 'Klepni na Trasa pěšky u stánku a uvidíš cestu ze své koleje, se vzdáleností a minutami.' },
   route_finding:    { en: 'Finding the walking route from {a} to {b}…', cs: 'Hledám trasu pěšky z {a} do {b}…' },

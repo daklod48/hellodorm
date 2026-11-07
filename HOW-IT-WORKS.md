@@ -355,4 +355,18 @@ Measured on the build machine, Lighthouse 12.8.2, mobile preset, 3 runs each, lo
 
 Two cleanest runs: v2 78 and 78, v3 86 and 80. The difference between 86 and 80 is a layout shift (0.077 or 0.161: the content moves once when the loading splash is replaced by Home), which happens the same way in v2 and is left for a later round.
 
+**Fresh eyes review.** A separate AI reviewer saw only 28 screenshots (`tools/capture-round5.py`) and the owner's bars, never the code or our reasoning, and scored 6 criteria from 1 to 10. Then the lowest scoring points were fixed once and a new reviewer scored once more, and the loop stopped there (owner's rule).
+
+| Criterion | First score | Rescore |
+|---|---|---|
+| Polish | 6 | 7 |
+| Depth | 8 | 8 |
+| Motion | 6 | 6 |
+| Clarity | 6 | 6 |
+| Consistency | 7 | 7 |
+| Delight | 8 | 8 |
+| Total | 41 of 60 | 42 of 60 |
+
+Fixed after the first review: map pins and names piled up at city zoom (now nearby stands merge into one bubble with a double ring and the total items, a tap zooms in, and only your dorm's name shows at the overview: 0 overlaps measured); the confetti flew over the welcome text (now drawn inside the card, behind the words); a pickup hold could end before the stand opened (now 48 hours and always until the end of the next pickup window); "1 day 13 h" could break before "h" (now kept together). Two findings were faults of the screenshot script, not the app (a floating header in full page shots; a cart with only one stand), and the script was corrected. Still open from the rescore, for a later round: the sticky Reserve bar covers the edge of a button below the pickup box on phones; the cart's Swap panel is narrow on phones; the shop icon on the pickup code sits apart from its text on the laptop; "your dorm" and "Your dorm" are written two ways; the phone tab bar highlights nothing on Cart.
+
 **New checks.** `tools/test-round5.py` runs every round 5 test on the stand-in database (section 11) and writes `review/round5/results.md`. `tools/check-v3-states.py` runs the contrast, readable, tap (46 px), icon contrast and sideways overflow checks on every main screen and every new state, in English and Czech, at 320, 390 and 1280 px.

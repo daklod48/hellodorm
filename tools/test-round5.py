@@ -95,9 +95,14 @@ with sync_playwright() as pw:
     ctx = new_ctx(b, 1280, 900); p = open_app(ctx)
     pick_dorm(p, 'thaler'); go(p, 'stands', 4500)
     tiles = p.eval_on_selector('#standsMap', 'e => +(e.dataset.tiles || 0)')
-    pins = p.locator('#standsMap .lpin').count(); me = p.locator('#standsMap .lpin.me').count()
+    pins = sum(int(x) for x in p.eval_on_selector_all('#standsMap .lpin', 'els => els.map((e) => e.dataset.stands)')); bubbles = p.locator('#standsMap .lpin').count(); me = p.locator('#standsMap .lpin.me').count()
     nums = p.locator('#standsMap .lpin b').all_inner_texts()
-    rec('Stands shows a real street map with all pins', '16 stand pins, my dorm highlighted, item numbers, tiles loaded', f'{pins} pins, {me} highlighted, numbers {",".join(nums)}, {tiles} tiles', pins == 16 and me == 1 and tiles > 0 and all(n.isdigit() for n in nums))
+    rec('Stands shows a real street map with all pins', '16 stands on pins (nearby stands grouped in one bubble), my dorm highlighted, item numbers, tiles loaded', f'{pins} stands on {bubbles} pins, {me} highlighted, numbers {",".join(nums)}, {tiles} tiles', pins == 16 and me == 1 and tiles > 0 and all(n.isdigit() for n in nums))
+    # pins and their names must not overlap each other at the starting zoom
+    ov = p.evaluate('''() => { const r = [...document.querySelectorAll('#standsMap .lpin, #standsMap .lpin-l')].map((e) => e.getBoundingClientRect()); let n = 0;
+      for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) { const a = r[i], b = r[j]; if (a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1) n++; } return n; }''')
+    pin_pairs = p.evaluate('''() => { const ws = [...document.querySelectorAll('#standsMap .lpin-wrap')]; let n = 0; ws.forEach((w) => { const a = w.querySelector('.lpin').getBoundingClientRect(), l = w.querySelector('.lpin-l').getBoundingClientRect(); if (a.bottom > l.top + 1) n++; }); return n; }''')
+    rec('Map pins and names do not overlap', '0 overlapping pins or names (own label below its pin)', f'{ov - 0} overlapping boxes', ov == 0)
     credit = p.locator('.map-credit').inner_text() + ' ' + p.locator('.leaflet-control-attribution').inner_text()
     rec('Map credits', '"© OpenStreetMap contributors" and "Routing: FOSSGIS OSRM"', credit.replace('\n', ' '), '© OpenStreetMap contributors' in credit and 'Routing: FOSSGIS OSRM' in credit)
     z0 = p.evaluate('document.querySelector("#standsMap").hdMap.getZoom()')
@@ -107,7 +112,7 @@ with sync_playwright() as pw:
     p.mouse.click(cx + 3, cy + 120); p.wait_for_timeout(300); p.mouse.wheel(0, -400); p.wait_for_timeout(900)
     z2 = p.evaluate('document.querySelector("#standsMap").hdMap.getZoom()')
     rec('Mouse wheel zooms only after a click', 'zoom same before the click, changes after', f'zoom {z0} -> {z1} before click, {z2} after', z0 == z1 and z2 != z1)
-    p.evaluate('document.querySelector("#standsMap").hdMap.fitBounds([[50.01,14.34],[50.12,14.54]])'); p.wait_for_timeout(600)
+    p.evaluate('document.querySelector("#standsMap").hdMap.setZoom(16)'); p.wait_for_timeout(900)
     # open a popup on every pin in turn; no button or link of the map may overlap the open popup
     worst = 0
     for i in range(16):

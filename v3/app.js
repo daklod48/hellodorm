@@ -107,8 +107,16 @@ function fmtDist(m) {
 function fmtLeft(ms) {
   if (ms <= 0) return t('time_up');
   const h = Math.floor(ms / HOUR), m = Math.floor((ms % HOUR) / MIN);
-  if (h >= 24) return t('left_dh', { d: Math.floor(h / 24), h: h % 24 });
-  return t('left_hm', { h, m });
+  // v3: a number and its unit never break apart ("1 day 13 h", never "13" and "h" on two lines).
+  const nb = (x) => x.replace(/(\d) /g, '$1\u00a0');
+  if (h >= 24) return nb(t('left_dh', { d: Math.floor(h / 24), h: h % 24 }));
+  return nb(t('left_hm', { h, m }));
+}
+// v3: a reservation is held 48 hours, and always at least until the end of the next pickup window, so the hold never
+// runs out before the stand opens (fresh eyes review, 7 Nov 2026: "held 1 day 13 h" while "pickup opens in 1 day 18 h").
+function holdUntil(from = now()) {
+  const w = nextWindow(from + 1);
+  return Math.max(from + HOLD_H * HOUR, w ? w.end : 0);
 }
 function fmtAgo(ms) {
   const m = Math.max(1, Math.round(ms / MIN));
@@ -761,7 +769,7 @@ function maybeWelcome() {
     </div>
     <button class="btn ghost wide" data-act="ws-go" data-to="home">${t('ws_later')}</button>
   </div>`, 'ws-sheet');
-  if (!reduced) import('./fireworks.js').then((m) => { if (S.welcomeOpen) S.fw = m.fireworks(document.body); }).catch(() => {});
+  if (!reduced) import('./fireworks.js').then((m) => { if (S.welcomeOpen) S.fw = m.fireworks($('#modal .sheet') || document.body); }).catch(() => {});
   return true;
 }
 async function doSignin(e) {
@@ -1209,7 +1217,7 @@ async function doCheckout(arg, form, method = 'demo') {
         if (x.status === 'sold' || (x.status === 'reserved' && x.until > n && x.by !== u)) bad.push(lines[i].id);
       });
       if (bad.length) return bad;
-      lines.forEach((it) => tx.set(doc(db, 'shop', it.id), { status: 'reserved', by: u, until: n + HOLD_H * HOUR }));
+      lines.forEach((it) => tx.set(doc(db, 'shop', it.id), { status: 'reserved', by: u, until: holdUntil(n) }));
       return [];
     });
     if (taken.length) {
@@ -1226,7 +1234,7 @@ async function doCheckout(arg, form, method = 'demo') {
       const its = lines.filter((x) => x.dorm === dm).map((x) => ({ id: x.id, title: x.title, cat: x.cat, price: x.price, photoId: x.id }));
       const ref = await addDoc(collection(db, 'users', u, 'orders'), {
         group, dorm: dm, code: code('P'), items: its, total: its.reduce((s, x) => s + x.price, 0),
-        status: 'reserved', reservedAt: n, expiresAt: n + HOLD_H * HOUR,
+        status: 'reserved', reservedAt: n, expiresAt: holdUntil(n),
         paid: method === 'demo', payMethod: method, ...(method === 'demo' ? { paidAt: n } : {}),
       });
       ids.push(ref.id);
@@ -2031,7 +2039,7 @@ async function seedDemo(u, lang, guest = {}, count = true) {
   b.set(doc(collection(db, 'users', u, 'orders')), {
     group: code('G'), dorm: 'thaler', code: code('P'), total: 290,
     items: [{ id: 'demo-lamp', photoId: 'e1', title: { en: 'Reading lamp (demo order)', cs: 'Lampička na čtení (ukázková objednávka)' }, cat: 'electronics', price: 290 }],
-    status: 'reserved', reservedAt: n - 10 * HOUR, expiresAt: n + 38 * HOUR,
+    status: 'reserved', reservedAt: n - 10 * HOUR, expiresAt: Math.max(n + 38 * HOUR, (nextWindow(n + 1) || { end: 0 }).end), // demo: held at least until the next pickup window ends
   });
   const notes = collection(db, 'users', u, 'notes');
   b.set(doc(notes), { type: 'offer', p: { title: lang === 'cs' ? 'Kancelářská židle' : 'Office chair', price: 230, stand: 'thaler' }, read: false, at: n - 1 * DAY });

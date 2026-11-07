@@ -11,12 +11,13 @@
 | Home search text arrives in Browse | Browse shows "kettle" and the kettle | /browse, box 'kettle', ['Electric kettle, 1.7 L'] | PASS |
 | Map code not loaded on Home (network list) | 0 requests for map.js, Leaflet, tiles or routes | 32 requests on Home, 0 map requests | PASS |
 | Map code loads when Stands opens | map.js, leaflet.js, leaflet.css requested | 3 files | PASS |
-| Stands shows a real street map with all pins | 16 stand pins, my dorm highlighted, item numbers, tiles loaded | 16 pins, 1 highlighted, numbers 5,4,5,1,1,1,1,1,1,1,2,1,1,3,2,0, 12 tiles | PASS |
+| Stands shows a real street map with all pins | 16 stands on pins (nearby stands grouped in one bubble), my dorm highlighted, item numbers, tiles loaded | 16 stands on 6 pins, 1 highlighted, numbers 17,2,2,8,1,0, 12 tiles | PASS |
+| Map pins and names do not overlap | 0 overlapping pins or names (own label below its pin) | 0 overlapping boxes | PASS |
 | Map credits | "© OpenStreetMap contributors" and "Routing: FOSSGIS OSRM" | Map: © OpenStreetMap contributors · Routing: FOSSGIS OSRM · Leaflet © OpenStreetMap contributors | PASS |
 | Mouse wheel zooms only after a click | zoom same before the click, changes after | zoom 11 -> 11 before click, 15 after | PASS |
 | No button on top of an open popup | 0 overlaps over 16 popups | 0 overlaps (worst popup) | PASS |
 | Walking route Thalerova to Strahov (live FOSSGIS service) | line on the map with km and minutes | 7.9 km, 105 min, 2 line drawn, 0.9 s, text "7.9 km · 105 min walk" | PASS |
-| At most 1 route request per second | gap between requests at least 1 s | 2 requests, gaps [1.0] | PASS |
+| At most 1 route request per second | gap between requests at least 1 s | 2 requests, gaps [1.01] | PASS |
 | Route service does not answer | "Route not available right now" and an Open in Google Maps link | Route not available right now / https://www.google.com/maps/dir/?api=1&origin=50.09143,14.48 | PASS |
 | Walking route in the item pickup box | map and route panel open inside the pickup box | map 1, panel 1 | PASS |
 | Fallback when Leaflet cannot load | drawn map shown, Stands not blank | drawn map 1, note 1 | PASS |

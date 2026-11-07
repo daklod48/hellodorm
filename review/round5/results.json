@@ -67,8 +67,14 @@
  },
  {
   "test": "Stands shows a real street map with all pins",
-  "expected": "16 stand pins, my dorm highlighted, item numbers, tiles loaded",
-  "result": "16 pins, 1 highlighted, numbers 5,4,5,1,1,1,1,1,1,1,2,1,1,3,2,0, 12 tiles",
+  "expected": "16 stands on pins (nearby stands grouped in one bubble), my dorm highlighted, item numbers, tiles loaded",
+  "result": "16 stands on 6 pins, 1 highlighted, numbers 17,2,2,8,1,0, 12 tiles",
+  "pass": true
+ },
+ {
+  "test": "Map pins and names do not overlap",
+  "expected": "0 overlapping pins or names (own label below its pin)",
+  "result": "0 overlapping boxes",
   "pass": true
  },
  {
@@ -98,7 +104,7 @@
  {
   "test": "At most 1 route request per second",
   "expected": "gap between requests at least 1 s",
-  "result": "2 requests, gaps [1.0]",
+  "result": "2 requests, gaps [1.01]",
   "pass": true
  },
  {

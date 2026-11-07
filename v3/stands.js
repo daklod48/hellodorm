@@ -94,12 +94,36 @@ async function initStandsMap() {
     S.liveMap = live; el.hdMap = map; // hdMap: lets the checks read the zoom level
     DORMS.forEach((d) => {
       const me = d.id === S.prof.dorm;
-      const m = L.marker([d.lat, d.lon], { icon: M.pinIcon(L, { n: standCount(d.id), me, label: esc(d.short) }), title: d.name, alt: d.name, keyboard: true, riseOnHover: true, zIndexOffset: me ? 1000 : 0 }).addTo(map);
+      const m = L.marker([d.lat, d.lon], { icon: M.pinIcon(L, { n: standCount(d.id), me, label: esc(d.short) }), title: d.name, alt: d.name, keyboard: true, riseOnHover: true, zIndexOffset: me ? 1000 : 0 });
       m.bindPopup(() => standPopup(d), { autoPanPaddingTopLeft: L.point(72, 124), autoPanPaddingBottomRight: L.point(16, 44), maxWidth: 260, minWidth: 200 });
       live.markers[d.id] = m;
     });
+    // v3 (fresh eyes review): stands closer than 64 px on screen are shown as one bubble with their total items, so pins
+    // and names never pile up; a tap on a bubble zooms in until the stands separate.
+    const layer = L.layerGroup().addTo(map);
+    const regroup = () => {
+      layer.clearLayers();
+      // At the city overview only my dorm's name shows; every name returns from zoom 13 (popups and the list always name them).
+      el.classList.toggle('z-low', map.getZoom() < 13);
+      const pts = DORMS.map((d) => ({ d, p: map.latLngToLayerPoint([d.lat, d.lon]) })), used = new Set();
+      pts.forEach((a) => {
+        if (used.has(a.d.id)) return;
+        const g = pts.filter((x) => !used.has(x.d.id) && a.p.distanceTo(x.p) < 64);
+        g.forEach((x) => used.add(x.d.id));
+        if (g.length === 1) { layer.addLayer(live.markers[a.d.id]); return; }
+        const me = g.some((x) => x.d.id === S.prof.dorm), lead = g.find((x) => x.d.id === S.prof.dorm) || g[0];
+        const n = g.reduce((sum, x) => sum + standCount(x.d.id), 0);
+        const c = L.marker([g.reduce((v, x) => v + x.d.lat, 0) / g.length, g.reduce((v, x) => v + x.d.lon, 0) / g.length], {
+          icon: M.pinIcon(L, { n, me, group: g.length, label: esc(t('group_label', { d: lead.d.short, n: g.length - 1 })) }),
+          title: g.map((x) => x.d.name).join(', '), alt: t('group_alt', { n: g.length }), keyboard: true, zIndexOffset: me ? 1000 : 0 });
+        c.on('click', () => map.fitBounds(g.map((x) => [x.d.lat, x.d.lon]), { padding: [70, 70], maxZoom: 17 }));
+        layer.addLayer(c);
+      });
+    };
+    map.on('zoomend', regroup);
     if (S.pos) L.circleMarker([S.pos.lat, S.pos.lon], { radius: 9, color: '#0B3D2E', weight: 3, fillColor: '#F4B740', fillOpacity: 1 }).addTo(map).bindTooltip(t('you_are_here'));
     map.fitBounds(DORMS.map((d) => [d.lat, d.lon]), { padding: [28, 28] });
+    regroup();
     if (S.routeTo) { const id = S.routeTo; S.routeTo = null; routeTo(dormById(id), $('#routePanel'), live); }
   } catch (e) { fallback(); }
 }

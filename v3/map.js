@@ -55,10 +55,11 @@ export async function makeMap(el, { center, zoom = 12, onFail, hint } = {}) {
 }
 
 // A stand pin: a round label with the number of items waiting there; the user's own dorm is larger and dark.
-export function pinIcon(L, { n, me, label }) {
+// group = how many stands one bubble stands for (nearby stands at a low zoom); drawn with a second ring.
+export function pinIcon(L, { n, me, label, group = 1 }) {
   return L.divIcon({
     className: 'lpin-wrap',
-    html: `<span class="lpin ${me ? 'me' : ''}"><b>${n}</b></span><span class="lpin-l">${label}</span>`,
+    html: `<span class="lpin ${me ? 'me' : ''} ${group > 1 ? 'group' : ''}" data-stands="${group}"><b>${n}</b></span><span class="lpin-l">${label}</span>`,
     iconSize: [46, 46], iconAnchor: [23, 23], popupAnchor: [0, -24],
   });
 }

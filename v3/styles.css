@@ -1100,3 +1100,11 @@ body.modal-open { position: fixed; left: 0; right: 0; overflow: hidden; width: 1
 .acct-btns .btn > span { min-width: 0; }
 .set-row label { min-width: 0; flex-wrap: wrap; }
 .set-row label input { min-width: 150px; min-height: 46px; }
+/* v3 (fresh eyes review): a bubble for nearby stands has a second ring, so it reads as "several". */
+.lpin.group { box-shadow: 0 0 0 3px var(--green), 0 0 0 6px var(--white), 0 0 0 8px var(--green), var(--sh-1); }
+.lpin.me.group { box-shadow: 0 0 0 4px var(--sun), 0 0 0 7px var(--white), 0 0 0 9px var(--ink), var(--sh-2); }
+/* v3 (fresh eyes review): the burst is drawn inside the welcome card, behind its text. */
+.fw-canvas.in-box { position: absolute; inset: 0; z-index: 0; border-radius: inherit; }
+.ws-sheet .sheet-body { position: relative; z-index: 1; }
+.real-map.z-low .lpin-l { display: none; }
+.real-map.z-low .lpin.me + .lpin-l { display: block; }

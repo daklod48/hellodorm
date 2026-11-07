@@ -33,11 +33,14 @@ with sync_playwright() as pw:
         go('item/Lnew'); shot('listing-photo-label')
         go('item/k4'); p.click('[data-act=pbox-route]'); p.wait_for_selector('.pmap .route-res', timeout=15000); p.wait_for_timeout(800)
         p.locator('.pmap').scroll_into_view_if_needed(); shot('pickup-box-route')
-        for id_ in ['k1', 'k4', 'f3', 'e5']:
+        # the kettle (k1) was put in the cart before someone else bought it
+        p.evaluate('(() => { const g = JSON.parse(localStorage.getItem("hd_guest") || "{}"); g.cart = [{ id: "k1", on: true }]; localStorage.setItem("hd_guest", JSON.stringify(g)); })()')
+        p.reload(); p.wait_for_selector('html[data-app=ready]'); p.wait_for_timeout(500)
+        for id_ in ['k1', 'k4', 'f3', 'e3']:  # k1 is sold (Swap), the rest wait at Strahov and Thalerova (2 stands)
             go('item/' + id_, 350)
             if p.locator('.cta-row [data-act=cart-add]').count(): p.click('.cta-row [data-act=cart-add]'); p.wait_for_timeout(250)
-        st = json.loads(p.evaluate('localStorage.getItem("fakefs")'));
-        go('cart', 800); shot('cart-best-stand-swap', full=True)
+        go('cart', 800); p.locator('#bestStand').scroll_into_view_if_needed(); shot('cart-best-stand')
+        p.locator('.swap').first.scroll_into_view_if_needed(); p.wait_for_timeout(200); shot('cart-swap')
         email = f'tester-cap-{W}-{int(time.time())}@hellodorm-demo.test'
         go('signup', 400); p.fill('#fSignup input[name=name]', 'Jana Novakova'); p.fill('#fSignup input[name=email]', email); p.fill('#fSignup input[name=password]', 'madeup123')
         p.click('#fSignup button[type=submit]'); p.wait_for_timeout(700); shot('welcome-scene-burst'); p.wait_for_timeout(2600); shot('welcome-scene')
