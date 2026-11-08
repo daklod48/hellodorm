@@ -13,10 +13,10 @@ import {
   onSnapshot, runTransaction, writeBatch, increment,
 } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 
-import { FIREBASE_CONFIG, MANAGER_UIDS, NTFY_TOPIC, STRIPE_PAYMENT_LINK } from './config.js';
+import { FIREBASE_CONFIG, MANAGER_UIDS, NTFY_TOPIC } from './config.js';
 import { TEXTS } from './texts.js';
 import { ICONS } from './icons.js';
-import { DORMS, STAND_HOURS, dormById, distanceM } from './data/dorms.js';
+import { DORMS, STAND_HOURS, dormById as standById, distanceM } from './data/dorms.js';
 import { ITEMS, itemById as sampleById } from './data/items.js';
 import { words, prepare, scoreFields } from './search.js';
 import { CATEGORIES, SHOP_CATEGORIES, CONDITIONS, AUTO_OFFER_MINUTES, catById, standardOffer, standardResale } from './data/prices.js';
@@ -126,6 +126,15 @@ function fmtAgo(ms) {
 }
 const code = (prefix) => prefix + Array.from(crypto.getRandomValues(new Uint8Array(5)), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
 const firstName = () => (S.prof.name || '').trim().split(/\s+/)[0] || t('student');
+// v3 round 6: a user may live in a dorm without a stand ("Other"): it is kept as customDorm (name, address, position)
+// with dorm = 'custom'. dormById('custom') returns it, so distances and "nearest stand" work from it.
+function customDorm() {
+  const c = S.prof.customDorm;
+  if (!c || !c.name) return undefined;
+  const short = c.name.length > 26 ? c.name.slice(0, 25) + '…' : c.name;
+  return { id: 'custom', custom: true, name: c.name, short, address: c.address || '', lat: c.lat ?? 50.0755, lon: c.lon ?? 14.4378, hasPos: c.lat != null };
+}
+const dormById = (id) => (id === 'custom' ? customDorm() : standById(id));
 const myDorm = () => dormById(S.prof.dorm);
 
 // Distance from the user to a dorm stand: real position if shared this session, else from the user's own dorm.
@@ -318,7 +327,6 @@ onAuthStateChanged(auth, async (user) => {
   }
   S.ready = true;
   // Round 4: back from Stripe's payment page (?paid=1). Finished once the orders have loaded (see listenMine).
-  if (new URLSearchParams(location.search).get('paid') === '1' && signedIn()) { S.payReturn = true; history.replaceState(null, '', location.pathname + '#/orders'); }
   // v2: someone opened a dorm mate's invite link (?dorm=thaler): choose that dorm for them unless they already have one.
   const inv = new URLSearchParams(location.search).get('dorm');
   if (inv && dormById(inv) && !S._invDone) {
@@ -375,12 +383,11 @@ function listenMine() {
   const sort = (arr, k) => arr.sort((a, b) => (b[k] || 0) - (a[k] || 0));
   S.unsub.push(onSnapshot(collection(db, 'users', u, 'items'), (qs) => {
     S.myItems = sort(qs.docs.map((d) => ({ id: d.id, ...d.data() })), 'createdAt');
-    syncSoon(); softRender();
+    syncSoon(); softRender(); syncBoard();
   }, () => {}));
   S.unsub.push(onSnapshot(collection(db, 'users', u, 'orders'), (qs) => {
     S.orders = sort(qs.docs.map((d) => ({ id: d.id, ...d.data() })), 'reservedAt');
-    if (S.payReturn) finishCardReturn();
-    syncSoon(); softRender();
+    syncSoon(); softRender(); syncBoard();
   }, () => {}));
   S.unsub.push(onSnapshot(collection(db, 'users', u, 'notes'), (qs) => {
     S.notes = sort(qs.docs.map((d) => ({ id: d.id, ...d.data() })), 'at');
@@ -397,8 +404,10 @@ onSnapshot(collection(db, 'shop'), (qs) => {
 // Firebase console, the live database refuses this read and the shop simply shows the 30 sample items.
 onSnapshot(collection(db, 'listings'), (qs) => {
   const two = (v) => (v && typeof v === 'object' ? v : { en: String(v || ''), cs: String(v || '') });
-  S.listings = qs.docs.map((d) => ({ id: d.id, ...d.data() }))
-    .filter((x) => dormById(x.dorm) && catById(x.cat) && x.cat !== 'other' && x.price > 0)
+  // v3 round 6: listings of a Demo account are seen only by that demo copy (demo: true), so testers do not fill the shop.
+  S.rawListings = qs.docs.map((d) => ({ id: d.id, ...d.data() }));
+  S.listings = S.rawListings
+    .filter((x) => standById(x.dorm) && catById(x.cat) && x.price > 0 && (!x.demo || x.seller === uid()))
     .map((x) => ({ ...x, title: two(x.title), desc: two(x.desc), kw: Array.isArray(x.kw) ? x.kw : [], listedAt: +x.listedAt || 0 }));
   softRender();
 }, () => {});
@@ -544,17 +553,19 @@ function renderChrome(name, scr) {
   $('#sidenav').innerHTML = `
     <div class="brand-row"><a href="#/home" class="brand">${ic('recycle')}<span>HelloDorm</span></a>${pipButton(t('pip_btn'), t('help_word'))}</div>
     <p class="tagline">${t('tagline')}</p>
-    <nav>${side.map(([n, i, k]) => `<a href="#/${n}" class="${activeSide(n) ? 'active' : ''}">${ic(i)}<span>${t(k)}</span>${n === 'notes' && un ? `<b class="count">${un}</b>` : ''}${n === 'cart' && cc ? `<b class="count">${cc}</b>` : ''}</a>`).join('')}</nav>
+    <nav>${side.map(([n, i, k]) => `<a href="#/${n}" class="${activeSide(n) ? 'active' : ''}">${n === 'profile' && signedIn() && S.prof.avatar ? avatarImg('xs') : ic(i)}<span>${t(k)}</span>${n === 'notes' && un ? `<b class="count">${un}</b>` : ''}${n === 'cart' && cc ? `<b class="count">${cc}</b>` : ''}</a>`).join('')}</nav>
     <div class="side-foot">${modeBadge()}</div>`;
   const deep = !TOP_TABS.includes(name) && !['stands'].includes(name);
   const title = scr.title !== undefined ? scr.title : ($('#topbar h1') ? $('#topbar h1').textContent : '');
   $('#topbar').classList.toggle('deep', deep);
+  $('#topbar').classList.toggle('has-av', signedIn() && !!S.prof.avatar); // round 6: room for the photo on narrow phones
   $('#topbar').innerHTML = `
     ${deep ? `<button class="iconbtn" data-act="back" data-word="${t('back')}">${ic('arrow-left')}<span>${t('back')}</span></button>` : `<a href="#/home" class="brand sm">${ic('recycle')}<span>HelloDorm</span></a>`}
     ${pipButton(t('pip_btn'), t('help_word'))}
     <h1>${esc(title)}</h1>
     <a href="#/cart" class="iconbtn inbox cart-link" id="cartLink">${ic('shopping-cart')}<span>${t('cart_t')}</span>${cc ? `<b class="count" id="cartCount">${cc}</b>` : ''}</a>
-    <a href="#/notes" class="iconbtn inbox">${ic('bell')}<span>${t('nav_inbox')}</span>${un ? `<b class="count">${un}</b>` : ''}</a>`;
+    <a href="#/notes" class="iconbtn inbox">${ic('bell')}<span>${t('nav_inbox')}</span>${un ? `<b class="count">${un}</b>` : ''}</a>
+    ${signedIn() && S.prof.avatar ? `<a href="#/profile" class="iconbtn av-link" aria-label="${t('tab_profile')}">${avatarImg('sm')}</a>` : ''}`;
 }
 function modeBadge() {
   if (S.mode === 'demo') return `<span class="pill sun">${ic('sparkles')}${t('demo_badge')}</span>`;
@@ -567,7 +578,7 @@ function modeBadge() {
 const orderItems = (o) => o.items || [{ id: o.itemId, title: o.title, cat: o.cat, price: o.price, photoId: o.photoId || o.itemId }];
 const orderTitle = (o) => { const its = orderItems(o); return its.length === 1 ? L(its[0].title) : t('n_items', { n: its.length }); };
 const orderTotal = (o) => o.total ?? orderItems(o).reduce((s, x) => s + x.price, 0);
-const orderThumb = (o) => { const x = orderItems(o)[0]; return { ...x, photoId: x.photoId || x.id }; };
+const orderThumb = (o) => { const x = orderItems(o)[0]; const l = S.listings.find((y) => y.id === x.id); return { ...x, photoId: x.photoId || x.id, photo: l ? l.photo : x.photo }; };
 
 // ---------- Cart (saved in the account; guests keep it on the device until sign up) ----------
 const inCart = (id) => S.prof.cart.some((c) => c.id === id);
@@ -639,7 +650,7 @@ function card(it) {
   return `<article class="card ${st !== 'free' && st !== 'mine' ? 'dim' : ''}">
     <a href="#/item/${it.id}" class="ph">${photo(it)}<span class="chip price">${czk(it.price)}</span>${flag}</a>${heartIcon(it.id)}
     <div class="cb">
-      <div class="badges"><span class="badge cond">${ic('star')}${t('cond_' + it.cond)}</span><span class="badge clean">${ic('sparkles')}<span class="long">${t('cleaned')}</span><span class="short">${t('cleaned_short')}</span></span></div>
+      <div class="badges">${isNewListing(it) ? `<span class="badge new">${ic('sparkles')}${t('badge_new')}</span>` : ''}<span class="badge cond">${ic('star')}${t('cond_' + it.cond)}</span><span class="badge clean">${ic('sparkles')}<span class="long">${t('cleaned')}</span><span class="short">${t('cleaned_short')}</span></span></div>
       <h3><a href="#/item/${it.id}">${esc(L(it.title))}</a></h3>
       <p class="meta pickup-line">${ic('map-pin')}<span><b>${t('pickup_card', { d: d.short })}</b>${distShort(it.dorm) ? ' · ' + distShort(it.dorm) : ''}</span></p>
       <p class="meta small"><span>${t('new_was', { p: czk(it.newPrice) })} · ${fmtAgo(listedAgoMs(it))}</span></p>
@@ -814,7 +825,7 @@ function inviteCard() {
 }
 function inviteLink() {
   const u = new URL('../', location.href.split('#')[0].split('?')[0]);
-  if (S.prof.dorm) u.searchParams.set('dorm', S.prof.dorm);
+  if (S.prof.dorm && S.prof.dorm !== 'custom') u.searchParams.set('dorm', S.prof.dorm);
   u.searchParams.set('ref', 'invite');
   return u.toString();
 }
@@ -894,11 +905,10 @@ SCREENS.home = () => {
         <div>
           <p class="eyebrow">${modeBadge()}</p>
           <h2>${esc(greet)}</h2>
-          ${d ? `<button class="dorm-line" data-act="dorm">${ic('map-pin')}<span>${t('your_stand', { d: d.short })}${distTo(d.id) != null && S.pos ? ' · ' + fmtDist(distTo(d.id)) : ''}</span><u>${t('change')}</u></button>`
+          ${d ? `<button class="dorm-line" data-act="dorm">${ic('map-pin')}<span>${d.custom ? t('your_dorm_nostand', { d: esc(d.short) }) : t('your_stand', { d: d.short })}${distTo(d.id) != null && S.pos ? ' · ' + fmtDist(distTo(d.id)) : ''}</span><u>${t('change')}</u></button>`
             : `<button class="btn primary big dorm-first" data-act="dorm">${ic('map-pin')}${t('choose_dorm_first')}</button><p class="dorm-why">${t('dorm_why')}</p>`}
 
         </div>
-        ${bg ? `<span class="photo-credit">${bg.source === 'Google Gemini' ? t('credit_ai_short') : `${t('photo_credit')}: ${esc(bg.author)} · ${esc(bg.license)}`}</span>` : ''}
         ${pipPose(signedIn() ? 'wave' : 'curious', 'pip-greet bob', 100)}
       </div>
       ${!signedIn() ? accountChoices() : ''}
@@ -912,8 +922,8 @@ SCREENS.home = () => {
       </div>
       <form class="searchbar" id="fHomeSearch" role="search">${ic('search')}<input name="q" placeholder="${t('search_ph')}" aria-label="${t('search')}" value="${esc(S.prof.search)}"><button class="btn primary sm" type="submit">${t('search')}</button></form>
       <div class="cat-row">${SHOP_CATEGORIES.map((c) => `<button class="cat-chip" data-act="cat-go" data-cat="${c.id}">${ic(c.icon)}<span>${t('cat_' + c.id)}</span></button>`).join('')}</div>
-      <div class="sec-head"><h2>${d ? t('at_your_stand', { d: d.short }) : t('fresh_items')}</h2><a href="#/browse">${t('see_all')}${ic('chevron-right')}</a></div>
-      ${d ? `<p class="meta">${openBadge(d)}</p>` : ''}
+      <div class="sec-head"><h2>${d && !d.custom ? t('at_your_stand', { d: d.short }) : d ? t('near_your_dorm') : t('fresh_items')}</h2><a href="#/browse">${t('see_all')}${ic('chevron-right')}</a></div>
+      ${d && !d.custom ? `<p class="meta">${openBadge(d)}</p>` : ''}
       ${hereBlock}
       ${dormBoard()}
       ${inviteCard()}
@@ -927,6 +937,7 @@ SCREENS.home = () => {
         </ol>
       </div>
       <div class="link-cards">
+        <a class="link-card" href="#/board">${ic('trophy')}<div><b>${t('lb_t')}</b><span>${t('lb_home_sub')}</span></div>${ic('chevron-right')}</a>
         <a class="link-card" href="#/about">${ic('users')}<div><b>${t('about_us')}</b><span>${t('about_us_sub')}</span></div>${ic('chevron-right')}</a>
         <a class="link-card" href="#/feedback">${ic('message-square-text')}<div><b>${t('fb_t')}</b><span>${t('fb_sub')}</span></div>${ic('chevron-right')}</a>
       </div>
@@ -970,7 +981,7 @@ function filtered() {
 // Same matching for the wishlist alerts in Saved.
 const matchesQuery = (it, q) => { const ws = words(q); return !ws.length || scoreFields(searchFields(it), ws).hits === ws.length; };
 SCREENS.browse = () => {
-  const f = S.prof.filters, d = myDorm();
+  const f = S.prof.filters, d0 = myDorm(), d = d0 && d0.custom ? null : d0;
   const res = filtered(), list = res.list, q = (S.prof.search || '').trim();
   const dist = (i) => distTo(i.dorm) ?? 0;
   // v3: with a search, one ranked list: best score first, then items at my dorm, then items still free, then nearest.
@@ -1042,7 +1053,8 @@ SCREENS.item = (id) => {
   const save = Math.round((1 - it.price / it.newPrice) * 100);
   const similar = availableItems().filter((x) => x.cat === it.cat && x.id !== id).sort((a, b) => (distTo(a.dorm) ?? 0) - (distTo(b.dorm) ?? 0)).slice(0, 4);
   let cta;
-  if (st === 'free') cta = `<div class="cta-row"><button class="btn primary big" data-act="reserve" data-id="${id}">${ic('ticket')}<span>${t('reserve_now')}<small>${t('reserve_now_sub')}</small></span></button>${cartBtn(id, true)}</div>`;
+  if (it.seller && it.seller === uid()) cta = `<div class="callout">${ic('package')}<div><b>${t('own_item_t')}</b><p>${t('own_item_b')}</p></div></div>`;
+  else if (st === 'free') cta = `<div class="cta-row"><button class="btn primary big" data-act="reserve" data-id="${id}">${ic('ticket')}<span>${t('reserve_now')}<small>${t('reserve_now_sub')}</small></span></button>${cartBtn(id, true)}</div>`;
   else if (st === 'mine') { const o = S.orders.find((x) => x.status === 'reserved' && orderItems(x).some((y) => y.id === id)); cta = `<a class="btn primary wide big" href="#/order/${o ? o.id : ''}">${ic('ticket')}${t('see_pickup')}</a>`; }
   else cta = `<div class="callout warn">${ic('clock')}<div><b>${t(st.includes('sold') ? 'taken_sold_t' : 'taken_res_t')}</b><p>${t('taken_b')}</p></div></div>`;
   return {
@@ -1171,8 +1183,8 @@ SCREENS.checkout = (arg) => {
       <h2 class="co-h">${t('co_step2')}</h2>
       <form id="fPay" class="form card-form" novalidate>
         <fieldset class="pay-pick"><legend class="sr">${t('pay_how')}</legend>
-          <label class="pay-opt ${STRIPE_PAYMENT_LINK ? '' : 'off'}"><input type="radio" name="pm" value="card" ${STRIPE_PAYMENT_LINK ? '' : 'disabled'}><span class="box">${ic('check')}</span>
-            <span><b>${ic('credit-card')}${t('pay_card_t')}</b><small>${STRIPE_PAYMENT_LINK ? t('pay_card_b') : t('pay_card_off')}</small></span></label>
+          <label class="pay-opt"><input type="radio" name="pm" value="card"><span class="box">${ic('check')}</span>
+            <span><b>${ic('credit-card')}${t('pay_card_t')}</b><small>${S.prof.card && S.prof.card.last4 ? t('card_saved', { n: esc(S.prof.card.last4) }) : t('pay_card_b2')}</small></span></label>
           <label class="pay-opt"><input type="radio" name="pm" value="demo" checked><span class="box">${ic('check')}</span>
             <span><b>${ic('sparkles')}${t('pay_demo_t')}</b><small>${t('pay_demo_b')}</small></span></label>
         </fieldset>
@@ -1189,12 +1201,14 @@ SCREENS.checkout = (arg) => {
       const sync = () => { const ok = boxes().every((b) => b.checked); $('#payBtn').setAttribute('aria-disabled', String(!ok)); $('#payHint').hidden = ok; if (ok) $('#fErr').textContent = ''; };
       boxes().forEach((b) => b.addEventListener('change', sync)); sync();
       const method = () => (($('#fPay').querySelector('input[name=pm]:checked') || {}).value || 'demo');
-      $('#fPay').addEventListener('change', (e) => { if (e.target.name === 'pm') $('#payLabel').textContent = method() === 'card' ? t('pay_card_go', { p: czk(total) }) : t('pay_demo', { p: czk(total) }); });
+      $('#fPay').addEventListener('change', (e) => { if (e.target.name === 'pm') $('#payLabel').textContent = method() === 'card' ? t('pay_card_go2') : t('pay_demo', { p: czk(total) }); });
       $('#fPay').addEventListener('submit', (e) => {
         e.preventDefault();
         const missing = boxes().find((b) => !b.checked);
         if (missing) { $('#fErr').textContent = t('co_err_confirm'); missing.focus(); missing.closest('.pickup-place').scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
-        doCheckout(arg, e.target, method());
+        // v3 round 6: Pay by card opens the demo payment page (any made-up card works); Demo pay pays at once.
+        if (method() === 'card') { go('card/' + arg); return; }
+        doCheckout(arg, e.target, 'demo');
       });
     },
   };
@@ -1203,7 +1217,6 @@ SCREENS.checkout = (arg) => {
 async function doCheckout(arg, form, method = 'demo') {
   const lines = checkoutLines(arg), u = uid();
   if (!signedIn()) return needAccount('checkout/' + arg, t('pay_need_t'), t('pay_need_b'));
-  if (method === 'card' && !STRIPE_PAYMENT_LINK) method = 'demo';
   const btn = form.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = t('working');
   const n = now();
   try {
@@ -1235,47 +1248,20 @@ async function doCheckout(arg, form, method = 'demo') {
       const ref = await addDoc(collection(db, 'users', u, 'orders'), {
         group, dorm: dm, code: code('P'), items: its, total: its.reduce((s, x) => s + x.price, 0),
         status: 'reserved', reservedAt: n, expiresAt: holdUntil(n),
-        paid: method === 'demo', payMethod: method, ...(method === 'demo' ? { paidAt: n } : {}),
+        paid: true, payMethod: method, paidAt: n,
       });
       ids.push(ref.id);
     }
     if (arg === 'cart') savePrefs({ cart: S.prof.cart.filter((c) => !lines.some((x) => x.id === c.id)) });
     else if (inCart(arg)) savePrefs({ cart: S.prof.cart.filter((c) => c.id !== arg) });
     bump('orders'); bump('pay_' + method);
-    if (method === 'card') return toStripe(group, lines.reduce((s, x) => s + x.price, 0));
     celebrate();
     go('thanks/' + group, true);
   } catch (e) { fail(e); btn.disabled = false; btn.textContent = t('pay_demo', { p: czk(lines.reduce((s, x) => s + x.price, 0)) }); }
 }
 
-// ---------- Card payment through a Stripe Payment Link (round 4) ----------
-// The order is saved first (items held, not yet paid); the person then types card details on Stripe's own page.
-// Stripe sends them back to .../v2/?paid=1 (set in the Payment Link), and the app marks the pending order paid.
-// Without a server the app cannot ask Stripe to confirm the payment, so it trusts that return: fine for a test mode
-// prototype, not for real money (HOW-IT-WORKS.md section 13).
-async function toStripe(group, total) {
-  lsSet('hd_pending_pay', group);
-  try { await setDoc(doc(db, 'users', uid()), { pendingPay: { group, at: now() } }, { merge: true }); } catch (e) { /* the local copy still works */ }
-  const u = new URL(STRIPE_PAYMENT_LINK);
-  u.searchParams.set('client_reference_id', group);
-  if (S.prof.email) u.searchParams.set('prefilled_email', S.prof.email);
-  if (S.prof.lang === 'cs') u.searchParams.set('locale', 'cs');
-  toast(t('pay_card_leaving', { p: czk(total) }));
-  setTimeout(() => location.assign(u.toString()), 400);
-}
-async function finishCardReturn() {
-  const group = (S.prof.pendingPay && S.prof.pendingPay.group) || lsGet('hd_pending_pay');
-  S.payReturn = false;
-  if (!group) return;
-  const mine = S.orders.filter((o) => o.group === group && o.paid === false);
-  const n = now();
-  for (const o of mine) await updateDoc(doc(db, 'users', uid(), 'orders', o.id), { paid: true, paidAt: n }).catch(() => {});
-  setDoc(doc(db, 'users', uid()), { pendingPay: null }, { merge: true }).catch(() => {});
-  try { localStorage.removeItem('hd_pending_pay'); } catch (e) { /* ignore */ }
-  bump('pay_card_done');
-  celebrate();
-  go('thanks/' + group, true);
-}
+// v3 round 6: the Stripe Payment Link path is gone. "Pay by card" is a demo payment page (round6.js, SCREENS.card)
+// that only checks that the fields are filled, then pays like Demo pay. Older unpaid orders can still be paid with Demo pay.
 
 // One success screen for both ways of paying: order confirmed, a pickup code per stand naming the dorm, a thank-you letter.
 SCREENS.thanks = (group) => {
@@ -1337,7 +1323,7 @@ SCREENS.order = (id) => {
       </div>`;
   if (o.status === 'reserved' && o.paid === false) {
     body = `<div class="code-card pending">${ic('credit-card')}<h2>${t('pay_pending_t')}</h2><p>${t('pay_pending_b')}</p>
-      <div class="stack">${STRIPE_PAYMENT_LINK ? `<button class="btn primary wide" data-act="pay-again" data-group="${esc(o.group)}">${ic('credit-card')}${t('pay_card_again')}</button>` : ''}
+      <div class="stack">
       <button class="btn outline wide" data-act="pay-demo-now" data-group="${esc(o.group)}">${ic('sparkles')}${t('pay_demo_instead')}</button></div></div>`;
   } else if (o.status === 'reserved') {
     body = `
@@ -1430,7 +1416,7 @@ SCREENS.saved = () => {
 };
 
 // ---------- Sell / donate flow ----------
-function newDraft() { return { step: 1, cat: '', other: '', title: '', desc: '', cond: '', photo: '', mode: '', stand: S.prof.dorm || '', day: 0 }; }
+function newDraft() { return { step: 1, cat: '', other: '', title: '', desc: '', cond: '', photo: '', mode: '', stand: S.prof.dorm && S.prof.dorm !== 'custom' ? S.prof.dorm : '', day: 0 }; }
 let draft = null;
 function saveDraft() { savePrefs({ draft: { ...draft } }, 600); }
 
@@ -1473,7 +1459,9 @@ SCREENS.sell = () => {
       ${est ? `<p class="meta small">${ic('info')}<span>${t('estimate_note')}</span></p>` : ''}`;
   } else if (st === 5) {
     const base = myDorm() || DORMS[2];
-    const stands = [...DORMS].sort((a, b) => distanceM(base, a) - distanceM(base, b)).slice(0, 6);
+    // v3 round 6: every stand can be chosen (Thalerova was missing when the 6 nearest did not include it).
+    const sorted = [...DORMS].sort((a, b) => distanceM(base, a) - distanceM(base, b));
+    const stands = draft.allStands ? sorted : sorted.slice(0, 6).concat(draft.stand && !sorted.slice(0, 6).some((x) => x.id === draft.stand) ? sorted.filter((x) => x.id === draft.stand) : []);
     const chosen = dormById(draft.stand);
     const nextFree = chosen && chosen.full ? stands.find((x) => !x.full && x.id !== chosen.id) : null;
     const days = [];
@@ -1482,6 +1470,8 @@ SCREENS.sell = () => {
     if (!draft.day || !days.some((x) => x.start === draft.day)) draft.day = 0;
     body = `<h2>${t('s5_t')}</h2><p class="muted">${t('s5_b')}</p>
       <div class="stand-pick">${stands.map((x) => `<button type="button" class="pick row ${draft.stand === x.id ? 'on' : ''}" aria-pressed="${draft.stand === x.id}" data-act="d-set" data-k="stand" data-v="${x.id}">${tick(draft.stand === x.id)}${ic('store')}<div><b>${t('stand_of', { d: x.short })}${x.id === S.prof.dorm ? ` <span class="pill green">${t('your_dorm')}</span>` : ''}${x.full ? ` <span class="pill red">${ic('ban')}${t('full_today')}</span>` : ''}</b><span>${esc(x.address)} · ${fmtDist(distanceM(S.pos || base, x))}</span></div></button>`).join('')}</div>
+      ${draft.allStands ? '' : `<button type="button" class="btn outline sm" data-act="d-allstands">${ic('list')}${t('show_all_stands', { n: DORMS.length })}</button>`}
+      <button type="button" class="linkbtn" data-act="other-dorm">${ic('map-pin')}<span>${t('od_link')}</span></button>
       ${nextFree ? `<div class="callout warn">${ic('triangle-alert')}<div><b>${t('full_t', { d: chosen.short })}</b><p>${t('full_b', { d: nextFree.short, dist: fmtDist(distanceM(chosen, nextFree)) })}</p></div><button class="btn outline sm" data-act="d-set" data-k="stand" data-v="${nextFree.id}">${t('use_this')}</button></div>` : ''}
       <h3>${t('dropoff_day')}</h3>
       <div class="day-pick">${days.map((x) => `<button type="button" class="pick day ${draft.day === x.start ? 'on' : ''}" aria-pressed="${draft.day === x.start}" data-act="d-day" data-v="${x.start}">${tick(draft.day === x.start)}${ic('calendar')}<span>${winTxt(x)}</span></button>`).join('')}</div>`;
@@ -1530,19 +1520,58 @@ async function submitDraft() {
 }
 
 // Shrink a photo to 400 px wide JPEG, stored inside the item record (no Firebase Storage).
+// v3 round 6: pictures are stored as WebP inside the Firestore document (not in Firebase Storage), within a size limit.
+// Lowers the quality, then the size, until the picture fits; browsers that cannot make WebP fall back to JPEG.
+function toWebp(canvas, maxBytes) {
+  const fits = (d) => d && (d.length - d.indexOf(',') - 1) * 0.75 <= maxBytes;
+  let c = canvas;
+  for (let round = 0; round < 4; round++) {
+    for (const q of [0.82, 0.7, 0.58, 0.46, 0.36]) {
+      let d = c.toDataURL('image/webp', q);
+      if (!d.startsWith('data:image/webp')) d = c.toDataURL('image/jpeg', q);
+      if (fits(d)) return d;
+    }
+    const n = document.createElement('canvas'); n.width = Math.round(c.width * 0.75); n.height = Math.round(c.height * 0.75);
+    n.getContext('2d').drawImage(c, 0, 0, n.width, n.height); c = n;
+  }
+  return '';
+}
+// Listing photo: at most 800 px wide, WebP, at most 150 KB.
 function compress(file) {
   return new Promise((res, rej) => {
     const img = new Image(), url = URL.createObjectURL(file);
     img.onload = () => {
-      const w = Math.min(400, img.width), h = Math.round(img.height * (w / img.width));
+      const w = Math.min(800, img.width), h = Math.round(img.height * (w / img.width));
       const c = document.createElement('canvas'); c.width = w; c.height = h;
       c.getContext('2d').drawImage(img, 0, 0, w, h);
       URL.revokeObjectURL(url);
-      res(c.toDataURL('image/jpeg', 0.72));
+      const d = toWebp(c, 150 * 1024);
+      d ? res(d) : rej(new Error('too big'));
     };
     img.onerror = rej; img.src = url;
   });
 }
+
+// ---------- v3 round 6: an accepted sale or a donation appears in Browse at once ----------
+// Listing id = <seller uid>_<item id>, so one item has one listing. Price: the sale price a manager set at the offer
+// step (salePrices/<listing id>, only managers can write it), otherwise the fixed resale table (data/prices.js,
+// standardResale; the same table is written into firestore.rules, so nobody can choose their own price).
+async function publishListing(ownerUid, itemId, it, { demo = false } = {}) {
+  const id = ownerUid + '_' + itemId;
+  if (!it || !standById(it.stand) || !catById(it.cat) || !CONDITIONS.some((c) => c.id === it.cond)) return null;
+  let price = standardResale(it.cat, it.cond);
+  try { const sp = await getDoc(doc(db, 'salePrices', id)); if (sp.exists() && sp.data().price > 0) price = sp.data().price; } catch (e) { /* table price */ }
+  const title = String(it.title || '').slice(0, 80), desc = String(it.desc || '').slice(0, 200);
+  const data = { title: { en: title, cs: title }, desc: { en: desc, cs: desc }, cat: it.cat, cond: it.cond, dorm: it.stand, price,
+    newPrice: catById(it.cat).newPrice, photo: it.photo || '', listedAt: now(), kw: it.cat === 'other' && it.other ? [String(it.other).slice(0, 40)] : [],
+    seller: ownerUid, item: itemId, demo };
+  try {
+    await setDoc(doc(db, 'listings', id), data);
+    await updateDoc(doc(db, 'users', ownerUid, 'items', itemId), { listed: true, salePrice: price }).catch(() => {});
+    return id;
+  } catch (e) { return null; } // rules not yet published, or offline: a manager can still put it on sale in Manager mode
+}
+const isNewListing = (it) => it.listedAt && Date.now() - it.listedAt < 3 * DAY;
 
 SCREENS.sold = (id) => {
   const it = S.myItems.find((x) => x.id === id);
@@ -1682,9 +1711,9 @@ SCREENS.bank = (then) => {
       </div><aside class="side"><div class="side-card">
       <h3>${t('bank_side_t')}</h3><p class="muted">${t('bank_side_b')}</p>
       <div class="demo-btns">
-        <button class="btn outline" data-act="demo-only">${ic('send')}${t('transfer')}</button>
-        <button class="btn outline" data-act="demo-only">${ic('credit-card')}${t('add_card')}</button>
-        <button class="btn outline" data-act="demo-only">${ic('landmark')}${t('change_bank')}</button>
+        <a class="btn outline" href="#/transfer">${ic('send')}${t('transfer')}</a>
+        <a class="btn outline" href="#/addcard">${ic('credit-card')}${S.prof.card && S.prof.card.last4 ? t('card_saved', { n: esc(S.prof.card.last4) }) : t('add_card')}</a>
+        <button class="btn outline" data-act="bank-change">${ic('landmark')}${t('change_bank')}</button>
       </div></div></aside></div>
     </section>`,
     after() {
@@ -1704,6 +1733,8 @@ SCREENS.bank = (then) => {
 async function acceptOffer(id) {
   try {
     await updateDoc(doc(db, 'users', uid(), 'items', id), { status: 'accepted', acceptedAt: now() });
+    const it = S.myItems.find((x) => x.id === id);
+    publishListing(uid(), id, { ...it, status: 'accepted' }, { demo: S.mode === 'demo' });
     note('paid', { title: (S.myItems.find((x) => x.id === id) || {}).title, price: (S.myItems.find((x) => x.id === id) || {}).offer });
     go('myitem/' + id, true);
     toast(t('paid_t'));
@@ -1747,6 +1778,26 @@ SCREENS.notes = () => {
 };
 
 // ---------- Profile ----------
+// ---------- v3 round 6: leaderboard entry ----------
+// Each account with at least 1 finished buy, sale or donation keeps one small public entry it writes itself:
+// first name, avatar, kg kept out of the bin, items. Demo, guest and other anonymous accounts never get one.
+// "Show me on the leaderboard" (Profile, on by default) off = the entry is deleted.
+let boardTimer;
+function syncBoard(force = false) {
+  clearTimeout(boardTimer);
+  boardTimer = setTimeout(async () => {
+    if (S.mode !== 'user' || !S.user || S.user.isAnonymous) return;
+    const imp = impact(), ref = doc(db, 'leaderboard', uid());
+    const name = ((S.prof.name || '').trim().split(/\s+/)[0] || t('student')).slice(0, 40);
+    const want = S.prof.board !== false && imp.n >= 1 ? { name, avatar: S.prof.avatar || '', kg: imp.kg, items: imp.n } : null;
+    const key = JSON.stringify(want);
+    if (!force && key === S._lbKey) return;
+    S._lbKey = key;
+    try { if (want) await setDoc(ref, { ...want, at: now() }); else await deleteDoc(ref); } catch (e) { /* rules not yet published or offline: next change tries again */ S._lbKey = ''; }
+  }, force ? 0 : 1200);
+}
+const avatarImg = (cls = '') => (S.prof.avatar ? `<img class="av ${cls}" src="${S.prof.avatar}" alt="" width="46" height="46">` : '');
+
 function impact() {
   const items = S.myItems.filter((i) => ['accepted', 'donated'].includes(i.status));
   const bought = S.orders.filter((o) => o.status === 'picked');
@@ -1761,7 +1812,8 @@ SCREENS.profile = () => {
     title: t('tab_profile'),
     html: `<section class="narrow profile">
       <div class="prof-head">
-        <div class="avatar">${esc(initials)}</div>
+        <div class="avatar-wrap">${S.prof.avatar ? `<img class="avatar photo" src="${S.prof.avatar}" alt="${t('av_alt')}" width="64" height="64" id="profAvatar">` : `<div class="avatar">${esc(initials)}</div>`}
+          ${signedIn() ? `<button class="linkbtn sm av-btn" data-act="avatar">${ic('camera')}<span>${S.prof.avatar ? t('av_change') : t('av_add')}</span></button>` : ''}</div>
         <div><h2>${S.mode === 'demo' ? t('demo_badge') : signedIn() ? esc(S.prof.name || t('student')) : t('guest_name')}</h2>
           <p class="meta"><span>${S.mode === 'demo' ? t('demo_badge') : S.mode === 'guest' ? t('guest_badge') : esc(S.prof.email)}</span></p></div>
         ${signedIn() ? `<button class="btn outline danger prof-out" data-act="signout" id="signOutBtn">${ic('log-out')}${t('sign_out')}</button>` : ''}
@@ -1782,6 +1834,8 @@ SCREENS.profile = () => {
         <a class="set-row" href="#/cart">${ic('shopping-cart')}<div><b>${t('cart_t')}</b><span>${t('n_items', { n: cartCount() })}</span></div>${ic('chevron-right')}</a>
         <a class="set-row" href="#/orders">${ic('shopping-bag')}<div><b>${t('nav_orders')}</b><span>${t('n_orders', { n: S.orders.length })}</span></div>${ic('chevron-right')}</a>
         <a class="set-row" href="#/notes">${ic('bell')}<div><b>${t('nav_inbox')}</b><span>${t('n_unread', { n: unreadCount() })}</span></div>${ic('chevron-right')}</a>` : ''}
+        <a class="set-row" href="#/board">${ic('trophy')}<div><b>${t('lb_t')}</b><span>${t('lb_row', { kg: fmtNum(imp.kg) })}</span></div>${ic('chevron-right')}</a>
+        ${S.mode === 'user' ? `<label class="set-row toggle-row">${ic('users')}<div><b>${t('lb_toggle')}</b><span>${t('lb_toggle_b')}</span></div><input type="checkbox" class="switch" data-in="board-toggle" ${S.prof.board !== false ? 'checked' : ''}></label>` : ''}
         <a class="set-row" href="#/stands">${ic('map')}<div><b>${t('nav_stands')}</b><span>${t('stands_sub')}</span></div>${ic('chevron-right')}</a>
         <a class="set-row" href="#/waitlist">${ic('mail')}<div><b>${t('wl_t')}</b><span>${t('wl_row')}</span></div>${ic('chevron-right')}</a>
         <a class="set-row" href="#/saved">${ic('bell-plus')}<div><b>${t('alerts_h')}</b><span>${t('n_alerts', { n: (S.prof.alerts || []).length })}</span></div>${ic('chevron-right')}</a>
@@ -1796,7 +1850,7 @@ SCREENS.profile = () => {
     </section>`,
     after() {
       const f = $('#fName');
-      if (f) f.addEventListener('submit', (e) => { e.preventDefault(); const name = new FormData(f).get('name').trim(); if (name) { savePrefs({ name }); updateProfile(S.user, { displayName: name }).catch(() => {}); toast(t('saved_ok')); render(); } });
+      if (f) f.addEventListener('submit', (e) => { e.preventDefault(); const name = new FormData(f).get('name').trim(); if (name) { savePrefs({ name }); updateProfile(S.user, { displayName: name }).catch(() => {}); syncBoard(true); toast(t('saved_ok')); render(); } });
     },
   };
 };
@@ -1876,10 +1930,18 @@ SCREENS.about = () => ({
     <div class="demo-banner">${ic('info')}<span>${t('proto_note')}</span></div>
     </div><aside class="side">
     <h3>${t('credits_t')}</h3>
-    <ul class="credits"><li>${t('credit_ai')}</li>
-      ${S.dormCredits.filter((c) => c.source !== 'Google Gemini').map((c) => `<li>${t('dorm_photo')} ${esc(c.dorm)}: <a href="${esc(c.page)}" target="_blank" rel="noopener">${esc(c.title)}</a>, ${esc(c.author)}, <a href="${esc(c.licenseUrl)}" target="_blank" rel="noopener">${esc(c.license)}</a>, Wikimedia Commons (cropped, blurred, tinted)</li>`).join('')}
-      ${S.credits.map((c) => `<li>${t('photo_credit')}: <a href="${esc(c.page)}" target="_blank" rel="noopener">${esc(c.photographer)} / ${esc(c.source)}</a></li>`).join('') || `<li>${t('no_photos')}</li>`}
-      <li>${t('credit_icons')}</li><li>${t('credit_fonts')}</li><li>${t('credit_dorms')}</li></ul>
+    <p class="muted">${t('credits_b')}</p>
+    <ul class="credits" id="creditsList">
+      <li><b>${t('cr_pip')}</b>: ${t('credit_ai')}</li>
+      ${S.dormCredits.filter((c) => c.source === 'Google Gemini').map((c) => `<li><b>${t('dorm_photo')} ${esc(c.dorm)}</b>: ${t('credit_ai_short')}</li>`).join('')}
+      ${S.dormCredits.filter((c) => c.source !== 'Google Gemini').map((c) => `<li><b>${t('dorm_photo')} ${esc((standById(c.dorm) || { short: c.dorm }).short)}</b>: ${esc(c.author)}, <a href="${esc(c.page)}" target="_blank" rel="noopener">${esc(c.source)}</a>, <a href="${esc(c.licenseUrl)}" target="_blank" rel="noopener">${esc(c.license)}</a></li>`).join('')}
+      ${S.credits.map((c) => { const it = sampleById(c.id); return `<li><b>${it ? esc(L(it.title)) : t('cr_onb', { n: c.id.slice(1) })}</b>: ${esc(c.photographer)}, <a href="${esc(c.page)}" target="_blank" rel="noopener">${esc(c.source)}</a>, <a href="https://unsplash.com/license" target="_blank" rel="noopener">${t('cr_unsplash_lic')}</a></li>`; }).join('') || `<li>${t('no_photos')}</li>`}
+      <li><b>${t('cr_map')}</b>: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>, ODbL; ${t('cr_map_lib')} <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a> (BSD 2 Clause)</li>
+      <li><b>${t('cr_route')}</b>: <a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noopener">FOSSGIS OSRM</a></li>
+      <li><b>${t('cr_search')}</b>: <a href="https://nominatim.org" target="_blank" rel="noopener">Nominatim</a>, OpenStreetMap</li>
+      <li><b>${t('cr_icons')}</b>: <a href="https://lucide.dev/license" target="_blank" rel="noopener">Lucide</a> (ISC)</li>
+      <li><b>${t('cr_fonts')}</b>: Nunito, Inter, <a href="https://openfontlicense.org" target="_blank" rel="noopener">SIL Open Font License 1.1</a></li>
+      <li>${t('credit_dorms')}</li></ul>
     </aside></div>
   </section>`,
 });
@@ -1939,6 +2001,9 @@ function lazyScreen(name, file) {
   };
 }
 SCREENS.manager = lazyScreen('manager', './manager.js');
+// v3 round 6 screens (round6.js): demo card payment, payout fakes, leaderboard.
+['card', 'addcard', 'transfer', 'board'].forEach((n) => { SCREENS[n] = lazyScreen(n, './round6.js'); });
+const r6 = (fn, ...a) => loadLazy('./round6.js').then((m) => m[fn](...a)).catch(fail);
 const loadManager = () => loadLazy('./manager.js').then((m) => m.loadManager());
 
 // ---------- Dorm pop-up ----------
@@ -1954,6 +2019,8 @@ function askDorm() {
       ${nearest ? `<div class="nearest">${ic('map-pin')}<div><b>${t('nearest_is', { d: nearest.short, dist: fmtDist(distanceM(S.pos, nearest)) })}</b><span>${esc(nearest.address)}</span></div><button class="btn sun sm" data-act="pick-dorm" data-id="${nearest.id}">${t('choose_this')}</button></div>` : ''}
       ${msg ? `<p class="meta">${ic('info')}<span>${msg}</span></p>` : ''}
       <label class="searchbar">${ic('search')}<input id="dormQ" placeholder="${t('dorm_search')}" value="${esc(q)}" aria-label="${t('dorm_search')}"></label>
+      ${S.prof.dorm === 'custom' && myDorm() ? `<div class="nearest">${ic('map-pin')}<div><b>${esc(myDorm().name)}</b><span>${esc(myDorm().address || t('od_no_address'))}</span></div><span class="pill green">${t('your_dorm_short')}</span></div>` : ''}
+      <button class="dorm-opt other" data-act="other-dorm">${ic('plus')}<div><b>${t('od_opt_t')}</b><span>${t('od_opt_b')}</span></div></button>
       <div class="dorm-list">${list.map((d) => `<button class="dorm-opt ${d.id === S.prof.dorm ? 'on' : ''}" aria-pressed="${d.id === S.prof.dorm}" data-act="pick-dorm" data-id="${d.id}">${ic('store')}<div><b>${esc(d.name)}</b><span>${esc(d.address)} · ${d.uni}${base ? ' · ' + fmtDist(distanceM(base, d)) : ''}</span></div>${tick(d.id === S.prof.dorm)}</button>`).join('')}</div>
       ${askStandCard()}
       <button class="btn ghost wide" data-act="close">${t('later')}</button>`;
@@ -2056,6 +2123,8 @@ async function resetDemo() {
     await Promise.all(qs.docs.map((d) => deleteDoc(d.ref)));
   }
   await Promise.all(Object.entries(S.shop).filter(([, v]) => v.by === u).map(([id]) => deleteDoc(doc(db, 'shop', id)).catch(() => {})));
+  // v3 round 6: this demo copy's own listings go too (rules allow a seller to delete only their demo listings).
+  await Promise.all((S.rawListings || []).filter((x) => x.seller === u && x.demo).map((x) => deleteDoc(doc(db, 'listings', x.id)).catch(() => {})));
   await seedDemo(u, S.prof.lang, {}, false);
   await loadUser();
   go('home', true);
@@ -2189,7 +2258,6 @@ const A = {
     softRender();
   },
   'cat-go'(el) { savePrefs({ filters: { ...S.prof.filters, cat: el.dataset.cat }, search: '' }); go('browse'); },
-  'pay-again'(el) { const g = el.dataset.group; toStripe(g, S.orders.filter((o) => o.group === g).reduce((s, o) => s + orderTotal(o), 0)); },
   async 'pay-demo-now'(el) {
     const g = el.dataset.group, n = now();
     for (const o of S.orders.filter((x) => x.group === g && x.paid === false)) await updateDoc(doc(db, 'users', uid(), 'orders', o.id), { paid: true, paidAt: n, payMethod: 'demo' }).catch(fail);
@@ -2220,7 +2288,7 @@ const A = {
   },
   'alert-remove'(el) { savePrefs({ alerts: (S.prof.alerts || []).filter((x, i) => i !== +el.dataset.i) }); render(); },
   'alert-open'(el) { const a = S.prof.alerts[+el.dataset.i]; savePrefs({ search: a.q, filters: { ...S.prof.filters, cat: a.cat, dorm: a.dorm } }); go('browse'); },
-  'my-dorm-items'() { savePrefs({ filters: { ...S.prof.filters, dorm: S.prof.dorm } }, 300); go('browse'); },
+  'my-dorm-items'() { const d = myDorm(); const st = d && d.custom ? [...DORMS].sort((a, b) => distanceM(d, a) - distanceM(d, b))[0] : d; savePrefs({ filters: { ...S.prof.filters, dorm: st ? st.id : '' } }, 300); go('browse'); },
   'f-cat'(el) { savePrefs({ filters: { ...S.prof.filters, cat: el.dataset.v } }, 300); render(); },
   'f-clear'() { savePrefs({ filters: { cat: '', cond: '', max: 0, dorm: '' }, search: '' }, 300); render(); },
   reserve(el) {
@@ -2240,6 +2308,7 @@ const A = {
     if (el.dataset.k === 'stand') draft.day = draft.day || 0;
     saveDraft(); render();
   },
+  'd-allstands'() { draft.allStands = true; render(); },
   'd-day'(el) { draft.day = +el.dataset.v; saveDraft(); render(); },
   'd-back'() { draft.step = Math.max(1, draft.step - 1); saveDraft(); render(); window.scrollTo(0, 0); },
   'd-next'() {
@@ -2279,6 +2348,10 @@ const A = {
     try { await updateDoc(doc(db, 'users', uid(), 'items', el.dataset.id), { status: 'collected' }); } catch (e) { fail(e); }
   },
   'demo-only'() { toast(t('demo_only')); },
+  'bank-change'() { r6('changeBank'); },
+  'other-dorm'() { r6('otherDorm'); },
+  avatar() { r6('avatarDialog'); },
+  'card-remove'() { savePrefs({ card: null }); toast(t('card_removed')); render(); },
   async forgot() {
     const inp = document.querySelector('#fSignin input[name=email]');
     const email = inp ? inp.value.trim() : '';
@@ -2317,6 +2390,13 @@ async function confirmDrop(ref, by) {
     return it;
   });
   if (res && res.mode !== 'donate') ntfy(`New item to price: ${res.title}, ${TEXTS['cond_' + res.cond].en}, ${dormById(res.stand).short} stand`);
+  // v3 round 6: a donation is accepted at drop off, so it goes on sale at once (table price; a manager can change it).
+  if (res && res.mode === 'donate') {
+    const [, owner, , itemId] = ref.path.split('/');
+    let demo = owner === uid() ? S.mode === 'demo' : false;
+    if (owner !== uid()) { try { const u = await getDoc(doc(db, 'users', owner)); demo = !!(u.exists() && u.data().isDemo); } catch (e) { /* not readable: a real account */ } }
+    publishListing(owner, itemId, { ...res, status: 'donated' }, { demo });
+  }
   return !!res;
 }
 function needAccount(after, title = t('need_acc_t'), body = t('need_acc_b')) {
@@ -2358,6 +2438,7 @@ document.addEventListener('input', (e) => {
 });
 document.addEventListener('change', async (e) => {
   const k = e.target.dataset && e.target.dataset.in;
+  if (k === 'board-toggle') { savePrefs({ board: e.target.checked }); syncBoard(true); toast(t(e.target.checked ? 'lb_on' : 'lb_off')); }
   if (k === 'cart-tick') { savePrefs({ cart: S.prof.cart.map((c) => (c.id === e.target.dataset.id ? { ...c, on: e.target.checked } : c)) }, 300); render(); }
   if (k === 'f-dorm') { savePrefs({ filters: { ...S.prof.filters, dorm: e.target.value } }, 300); render(); }
   if (k === 'f-cond') { savePrefs({ filters: { ...S.prof.filters, cond: e.target.value } }, 300); render(); }
@@ -2372,6 +2453,9 @@ function refreshTimers() {
   document.querySelectorAll('[data-countdown]').forEach((el) => (el.textContent = fmtLeft(+el.dataset.countdown - now())));
 }
 setInterval(refreshTimers, 1000 * 20);
+
+// v3 round 6: helpers for round6.js (defined above, so they are added here, after everything exists).
+Object.assign(HOST, { L, uid, bump, needAccount, checkoutLines, doCheckout, maskIban, firstName, toWebp, syncBoard, standById });
 
 // ---------- Start ----------
 (async function start() {

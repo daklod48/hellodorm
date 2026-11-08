@@ -1,7 +1,7 @@
 // v3 (round 5): Manager mode, moved out of app.js so Home downloads less (loaded on first use; see lazy() in app.js).
 // The code is unchanged; app.js hands over the helpers it uses in H.
 export function install(H) {
-  const { $, ANSWER_DAYS, AUTO_OFFER_MINUTES, CATEGORIES, COLLECT_DAYS, CONDITIONS, DAY, FB_CHOICE, FB_OPTS, FB_SCALE, HOUR, ITEMS, MIN, S, SCREENS, TEXTS, addDoc, allItems, catById, catName, closeModal, collection, collectionGroup, czk, db, deleteDoc, distShort, distTo, doc, dormById, empty, esc, fail, fmtAgo, fmtDate, fmtDateLong, fmtDist, fmtLeft, fmtNum, getDoc, getDocs, go, grid, ic, itemById, now, openModal, photo, pipPose, render, savePrefs, setDoc, shopState, signedIn, standardOffer, standardResale, statusPill, t, toast, uid, updateDoc } = H;
+  const { $, ANSWER_DAYS, AUTO_OFFER_MINUTES, CATEGORIES, COLLECT_DAYS, CONDITIONS, DAY, FB_CHOICE, FB_OPTS, FB_SCALE, HOUR, ITEMS, MIN, S, SCREENS, TEXTS, addDoc, allItems, catById, catName, closeModal, collection, collectionGroup, czk, db, deleteDoc, distShort, distTo, doc, dormById, empty, esc, fail, fmtAgo, fmtDate, fmtDateLong, fmtDist, fmtLeft, fmtNum, getDoc, getDocs, go, grid, ic, itemById, now, openModal, photo, pipPose, render, savePrefs, setDoc, shopState, signedIn, standardOffer, standardResale, statusPill, t, toast, uid, updateDoc, L } = H;
 // ---------- Manager mode ----------
 async function loadManager() {
   try {
@@ -22,6 +22,10 @@ async function loadManager() {
     S.mgr.stats = {}; names.forEach((k, i) => (S.mgr.stats[k] = (snaps[i] && snaps[i].exists() && snaps[i].data().n) || 0));
     const wl = await getDocs(collection(db, 'waitlist'));
     S.mgr.waitlist = wl.docs.map((d) => d.data()).sort((a, b) => b.at - a.at);
+    // v3 round 6: leaderboard entries and the avatars a manager has hidden.
+    const [lb, hd] = await Promise.all([getDocs(collection(db, 'leaderboard')).catch(() => null), getDocs(collection(db, 'lbHide')).catch(() => null)]);
+    S.mgr.board = lb ? lb.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.kg || 0) - (a.kg || 0)) : [];
+    S.mgr.hidden = new Set(hd ? hd.docs.map((d) => d.id) : []);
     S.mgr.loaded = true;
   } catch (e) { fail(e); S.mgr.loaded = true; }
   if (H.cur() === 'manager') render();
@@ -33,7 +37,7 @@ SCREENS.manager = () => {
   const queue = items.filter((i) => i.status === 'examining').sort((a, b) => a.droppedAt - b.droppedAt);
   const waiting = items.filter((i) => i.status === 'waiting');
   const offers = items.filter((i) => ['offer', 'accepted', 'declined', 'donated', 'rejected', 'disposed', 'collected'].includes(i.status) && i.mode === 'sell').sort((a, b) => (b.offerAt || b.createdAt) - (a.offerAt || a.createdAt));
-  const tabs = [['queue', 'list', t('m_queue', { n: queue.length })], ['offers', 'banknote', t('m_offers')], ['totals', 'chart-column', t('m_totals')], ['controls', 'fast-forward', t('m_controls')]];
+  const tabs = [['queue', 'list', t('m_queue', { n: queue.length })], ['offers', 'banknote', t('m_offers')], ['totals', 'chart-column', t('m_totals')], ['board', 'trophy', t('m_board')], ['controls', 'fast-forward', t('m_controls')]];
   let body = '';
   if (tab === 'queue') {
     body = `${queue.length ? `<div class="mgr-grid">${queue.map((i) => `<article class="mgr-card">
@@ -45,7 +49,8 @@ SCREENS.manager = () => {
         ${i.desc ? `<p class="small">${esc(i.desc)}</p>` : ''}
       </div>
       <form class="mgr-form" data-form="price" data-path="${i.ref.path}">
-        <label>${t('m_price')}<input name="price" type="number" min="0" step="10" value="${standardOffer(i.cat, i.cond)}"></label>
+        <label>${t('m_price')}<input name="price" type="number" min="0" step="10" value="${standardOffer(i.cat, i.cond)}" data-copy-to="sale"></label>
+        <label>${t('m_sale_price')}<input name="sale" type="number" min="10" step="10" value="${standardOffer(i.cat, i.cond)}"><small class="note">${t('m_sale_note')}</small></label>
         <button class="btn primary sm" type="submit">${ic('check')}${t('m_set_price')}</button>
       </form>
       <form class="mgr-form" data-form="reject" data-path="${i.ref.path}">
@@ -63,14 +68,23 @@ SCREENS.manager = () => {
   } else if (tab === 'offers') {
     // v3: items bought from students (accepted) or donated can be put on sale; they appear in the shop for everyone
     // (collection 'listings') and count as "new at your dorm" in the Welcome back card.
-    const resell = items.filter((i) => ['accepted', 'donated'].includes(i.status) && !i.listed && i.cat !== 'other' && catById(i.cat));
+    // v3 round 6: normally the seller's own app puts an item on sale the moment it is accepted or donated; this list
+    // catches the rest (rules not yet published, offline). The shop list below lets a manager change any sale price.
+    const resell = items.filter((i) => ['accepted', 'donated'].includes(i.status) && !i.listed && catById(i.cat));
+    const live = (S.rawListings || []).filter((x) => !x.demo).sort((a, b) => (b.listedAt || 0) - (a.listedAt || 0));
     body = `${resell.length ? `<h3>${ic('store')}${t('m_resell_h')}</h3><p class="muted">${t('m_resell_b')}</p><div class="list">${resell.map((i) => `<div class="row-card">${photo(i, 'thumb')}<div><b>${esc(i.title)}</b>
         <p class="meta"><span>${esc(catName(i))} · ${t('cond_' + i.cond)} · ${t('stand_of', { d: dormById(i.stand).short })}</span></p>
         <form class="mgr-form inline" data-form="list" data-path="${i.ref.path}"><input name="price" type="number" min="10" step="10" value="${standardResale(i.cat, i.cond)}" aria-label="${t('m_resell_price')}"><button class="btn primary sm" type="submit">${ic('store')}${t('m_resell_btn')}</button></form></div></div>`).join('')}</div>` : ''}
-      ${S.listings.length ? `<p class="meta small">${ic('info')}<span>${t('m_listed_n', { n: S.listings.length })}</span></p>` : ''}` + (offers.length ? `<div class="list">${offers.map((i) => `<div class="row-card">${photo(i, 'thumb')}<div><b>${esc(i.title)}</b>
+      ${live.length ? `<h3>${ic('store')}${t('m_shop_h')}</h3><p class="meta small">${ic('info')}<span>${t('m_listed_n', { n: live.length })}</span></p><div class="list" id="mgrListings">${live.map((x) => `<div class="row-card">${photo(x, 'thumb')}<div><b>${esc(L(x.title))}</b>
+        <p class="meta"><span>${t('stand_of', { d: (dormById(x.dorm) || { short: x.dorm }).short })} · ${shopState(x.id) === 'free' ? t('m_on_sale') : t('sold')}</span></p>
+        <form class="mgr-form inline" data-form="relist" data-id="${esc(x.id)}"><input name="price" type="number" min="10" step="10" value="${x.price}" aria-label="${t('m_sale_price')}"><button class="btn outline sm" type="submit">${t('m_change')}</button></form></div></div>`).join('')}</div>` : ''}` + (offers.length ? `<div class="list">${offers.map((i) => `<div class="row-card">${photo(i, 'thumb')}<div><b>${esc(i.title)}</b>
         <p class="meta"><span>${i.offer ? czk(i.offer) : ''} · ${i.offerBy === 'auto' ? t('m_by_auto') : i.offerBy === 'manager' ? t('m_by_manager') : ''}${i.rejectReason ? esc(i.rejectReason) : ''}</span></p>
-        ${i.status === 'offer' ? `<form class="mgr-form inline" data-form="price" data-path="${i.ref.path}"><label class="sr">${t('m_price')}</label><input name="price" type="number" min="0" step="10" value="${i.offer}" aria-label="${t('m_price')}"><button class="btn outline sm" type="submit">${t('m_change')}</button></form>` : ''}</div>
+        ${i.status === 'offer' ? `<form class="mgr-form inline" data-form="price" data-path="${i.ref.path}"><label class="sr">${t('m_price')}</label><input name="price" type="number" min="0" step="10" value="${i.offer}" aria-label="${t('m_price')}"><input name="sale" type="number" min="10" step="10" value="${i.salePrice || i.offer}" aria-label="${t('m_sale_price')}"><button class="btn outline sm" type="submit">${t('m_change')}</button></form>` : ''}</div>
         ${statusPill(i.status)}</div>`).join('')}</div>` : empty('banknote', t('m_no_offers'), ''));
+  } else if (tab === 'board') {
+    const b = S.mgr.board || [];
+    body = `<p class="muted">${t('m_board_b')}</p>${b.length ? `<div class="list" id="mgrBoard">${b.map((x) => { const hid = S.mgr.hidden.has(x.id); return `<div class="row-card">${x.avatar && !hid ? `<img class="av" src="${esc(x.avatar)}" alt="" width="46" height="46">` : `<span class="av ini" aria-hidden="true">${esc(((x.name || '?')[0] || '?').toUpperCase())}</span>`}<div><b>${esc(x.name || '')}</b><p class="meta small"><span>${fmtNum(x.kg || 0)} kg · ${t('n_items', { n: x.items || 0 })}${hid ? ' · ' + t('m_av_hidden') : ''}</span></p></div>
+      ${x.avatar ? `<button class="btn outline sm" data-lb="${esc(x.id)}" data-hide="${hid ? 0 : 1}">${ic(hid ? 'eye' : 'ban')}${t(hid ? 'm_av_show' : 'm_av_hide')}</button>` : ''}</div>`; }).join('')}</div>` : empty('trophy', t('lb_empty_t'), '')}`;
   } else if (tab === 'totals') {
     const s = S.mgr.stats;
     const tiles = [['users', t('m_t_users'), s.users], ['demo', t('m_t_demo'), s.demo], ['package', t('m_t_items'), items.length], ['mail', t('m_t_waitlist'), S.mgr.waitlist.length],
@@ -102,6 +116,11 @@ SCREENS.manager = () => {
       ${body}
     </section>`,
     after() {
+      // Sale price follows the offer until the manager types a different sale price.
+      document.querySelectorAll('[data-copy-to]').forEach((inp) => { const sale = inp.form.querySelector('[name=sale]'); if (!sale) return; sale.addEventListener('input', () => { sale.dataset.touched = '1'; }); inp.addEventListener('input', () => { if (!sale.dataset.touched) sale.value = inp.value; }); });
+      document.querySelectorAll('[data-lb]').forEach((b) => b.addEventListener('click', async () => {
+        try { if (b.dataset.hide === '1') await setDoc(doc(db, 'lbHide', b.dataset.lb), { at: now() }); else await deleteDoc(doc(db, 'lbHide', b.dataset.lb)); toast(t(b.dataset.hide === '1' ? 'm_av_hidden_ok' : 'm_av_shown_ok')); loadManager(); } catch (e) { fail(e); }
+      }));
       const q = $('#mgrCode');
       if (q) q.addEventListener('input', () => {
         const v = q.value.trim().toLowerCase(); let shown = 0;
@@ -115,16 +134,28 @@ SCREENS.manager = () => {
           if (f.dataset.form === 'price') {
             const price = Math.round(+fd.get('price'));
             if (!(price >= 0)) return;
-            await updateDoc(ref, { status: 'offer', offer: price, offerBy: 'manager', offerAt: n2, answerBy: n2 + ANSWER_DAYS * DAY, n_offer: false });
+            const sale = Math.round(+fd.get('sale')) || price;
+            await updateDoc(ref, { status: 'offer', offer: price, salePrice: sale, offerBy: 'manager', offerAt: n2, answerBy: n2 + ANSWER_DAYS * DAY, n_offer: false });
+            // The sale price the seller's app must use when the item is accepted (only managers can write salePrices).
+            const [, owner, , itemId] = f.dataset.path.split('/');
+            await setDoc(doc(db, 'salePrices', owner + '_' + itemId), { price: sale, at: n2 });
             toast(t('m_priced', { p: czk(price) }));
+          } else if (f.dataset.form === 'relist') {
+            const price = Math.round(+fd.get('price'));
+            if (!(price > 0)) return;
+            await updateDoc(doc(db, 'listings', f.dataset.id), { price });
+            await setDoc(doc(db, 'salePrices', f.dataset.id), { price, at: n2 });
+            toast(t('m_relisted', { p: czk(price) }));
           } else if (f.dataset.form === 'list') {
             const it = S.mgr.items.find((x) => x.ref.path === f.dataset.path), price = Math.round(+fd.get('price'));
             if (!it || !(price > 0)) return;
             const title = String(it.title || '').slice(0, 80), desc = String(it.desc || '').slice(0, 200);
-            // No personal data in a listing: what the item is, where it waits and the price.
-            await addDoc(collection(db, 'listings'), { title: { en: title, cs: title }, desc: { en: desc, cs: desc }, cat: it.cat, cond: it.cond,
-              dorm: it.stand, price, newPrice: catById(it.cat).newPrice, photo: it.photo || '', listedAt: n2 });
-            await updateDoc(ref, { listed: true });
+            const [, owner, , itemId] = f.dataset.path.split('/'), lid = owner + '_' + itemId;
+            // No personal data in a listing: what the item is, where it waits, the price, and the seller's account number.
+            await setDoc(doc(db, 'salePrices', lid), { price, at: n2 });
+            await setDoc(doc(db, 'listings', lid), { title: { en: title, cs: title }, desc: { en: desc, cs: desc }, cat: it.cat, cond: it.cond,
+              dorm: it.stand, price, newPrice: catById(it.cat).newPrice, photo: it.photo || '', listedAt: n2, kw: [], seller: owner, item: itemId, demo: false });
+            await updateDoc(ref, { listed: true, salePrice: price });
             toast(t('m_resell_done', { d: dormById(it.stand).short }));
           } else {
             const reason = (fd.get('reason') || '').trim() || t('m_reason_default');

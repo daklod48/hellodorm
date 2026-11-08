@@ -1,0 +1,236 @@
+[
+ {
+  "test": "1 Pay by card opens the demo payment page",
+  "expected": "card page, no Stripe and no \"Not set up yet\"",
+  "result": "/card/k5, form 1, Stripe text gone True",
+  "pass": true
+ },
+ {
+  "test": "1 Brand follows the first digit",
+  "expected": "Visa, Mastercard, Amex, Discover, plain Card",
+  "result": "['Visa', 'Mastercard', 'Amex', 'Discover', 'Card']",
+  "pass": true
+ },
+ {
+  "test": "1 Empty fields are the only check",
+  "expected": "message asking to fill the fields",
+  "result": "Fill in all four fields. Any made up numbers work.",
+  "pass": true
+ },
+ {
+  "test": "1 Card number grouped by 4, expiry MM/YY, honest line",
+  "expected": "\"4242 4242 4242 1234\", \"12/29\", the demo line",
+  "result": "\"4242 4242 4242 1234\", \"12/29\", \"Demo payment page: use made up numbers, nothing is charged.\"",
+  "pass": true
+ },
+ {
+  "test": "1 Pay shows the same success screen as Demo pay",
+  "expected": "thanks screen with pickup code and letter",
+  "result": "/thanks/GR2YQ7, codes 1, letter 1",
+  "pass": true
+ },
+ {
+  "test": "2 Thank you letter uses the corrected cheer pose",
+  "expected": "img/pip/pip-cheer.webp (two front flippers, merged from assets/pip-cheer-2026-11-08)",
+  "result": "img/pip/pip-cheer.webp",
+  "pass": true
+ },
+ {
+  "test": "1 Saved for next time: name, expiry, last 4 only",
+  "expected": "card {name, exp, last4: 1234, brand}; full number and CVC nowhere",
+  "result": "{'name': 'Jana Novakova', 'exp': '12/29', 'last4': '1234', 'brand': 'Visa'}, full number stored False, CVC stored False",
+  "pass": true
+ },
+ {
+  "test": "1 Next time: \"Saved card ending 1234\" and \"Use another card\"",
+  "expected": "both choices shown, saved card preselected",
+  "result": "Which card Saved card ending 1234 Visa · 12/29 · Jana Novakova Use another card",
+  "pass": true
+ },
+ {
+  "test": "1 Paying with the saved card",
+  "expected": "success screen",
+  "result": "/thanks/GN5FXK",
+  "pass": true
+ },
+ {
+  "test": "5 Transfer: amount, confirm, success, list",
+  "expected": "confirm dialog, success card, 1 past transfer of 250 CZK",
+  "result": "no 'does nothing' buttons left True, confirm 1, success 1, list 1 '250 CZK\n\nWed 11 Nov · CZ65 •••'",
+  "pass": true
+ },
+ {
+  "test": "5 Change bank: pick from the list or type one",
+  "expected": "\"Fio banka\", then \"Moje Banka Test\" saved",
+  "result": "Fio banka, Moje Banka Test",
+  "pass": true
+ },
+ {
+  "test": "5 Add card saves the last 4 digits only",
+  "expected": "card last4 8888, Mastercard, no full number",
+  "result": "{'name': 'Demo', 'exp': '01/30', 'last4': '8888', 'brand': 'Mastercard'}",
+  "pass": true
+ },
+ {
+  "test": "Page errors (card and payout)",
+  "expected": "0",
+  "result": "[]",
+  "pass": true
+ },
+ {
+  "test": "3 Seller photo stored as WebP, at most 150 KB",
+  "expected": "data:image/webp, at most 153,600 bytes (test photo 1600 x 1200, about 290 KB)",
+  "result": "data:image/webp;base64 49458 bytes",
+  "pass": true
+ },
+ {
+  "test": "4 Sell: Thalerova and every stand can be chosen (dorm Blanice)",
+  "expected": "6 nearest, then \"Show all\" gives 16 including Thalerova",
+  "result": "6 then 16, Thalerova 1",
+  "pass": true
+ },
+ {
+  "test": "3 Manager types the sale price at the offer step",
+  "expected": "sale price follows the offer (250) until typed; 390 stored in salePrices",
+  "result": "prefill 250, salePrices {'price': 390, 'at': 1794414620035}, offer 250",
+  "pass": true
+ },
+ {
+  "test": "3 Accepted and paid: in Browse at once",
+  "expected": "listing at Blanice, price 390, seller photo, not demo",
+  "result": "{'cat': 'kitchen', 'cond': 'good', 'dorm': 'blanice', 'price': 390, 'photo': 'data:image/webp;', 'demo': False}",
+  "pass": true
+ },
+ {
+  "test": "3 Everyone sees it: photo, title, condition, New badge",
+  "expected": "card \"Rice cooker\", WebP photo, \"New\", \"Good\"",
+  "result": "Rice cooker, img data:image/webp;, new 1, Good",
+  "pass": true
+ },
+ {
+  "test": "3 Buyer picks it up",
+  "expected": "shop entry sold",
+  "result": "{'status': 'sold', 'by': 'u_tester_r6_buyer_1794150344_hellodorm_demo_test', 'until': 9000000000000000}",
+  "pass": true
+ },
+ {
+  "test": "8 Buyer appears on the leaderboard after a finished buy",
+  "expected": "Karel with 1.2 kg (kitchen), 1 item; count line",
+  "result": "'2 people have bought, sold or donated so far' / '1\\nK\\nKarel\\nYou\\n1 item\\n1.2 kg\\n2\\nP\\nPetra\\n1 item\\n1.2 kg'",
+  "pass": true
+ },
+ {
+  "test": "3 Sold for everyone (a guest on a third device)",
+  "expected": "card shows Sold, no Add to cart",
+  "result": "chip 'Sold', add buttons 0",
+  "pass": true
+ },
+ {
+  "test": "8 Seller also counts (both sides of the deal)",
+  "expected": "Petra and Karel both listed",
+  "result": "1 K Karel 1 item 1.2 kg 2 P Petra You 1 item 1.2 kg",
+  "pass": true
+ },
+ {
+  "test": "8 \"Show me on the leaderboard\" off removes the entry",
+  "expected": "Petra gone, Karel stays",
+  "result": "1 K Karel 1 item 1.2 kg",
+  "pass": true
+ },
+ {
+  "test": "7 Profile photo cropped, WebP, at most 50 KB, saved in the account",
+  "expected": "data:image/webp, at most 51,200 bytes",
+  "result": "data:image/webp;base64 8778 bytes",
+  "pass": true
+ },
+ {
+  "test": "7 Photo shown on Profile, top bar and leaderboard",
+  "expected": "all three",
+  "result": "profile 1, top bar 1, leaderboard 1",
+  "pass": true
+ },
+ {
+  "test": "7 Photo on another device",
+  "expected": "same photo after signing in elsewhere",
+  "result": "1",
+  "pass": true
+ },
+ {
+  "test": "7 Manager hides an avatar from the leaderboard",
+  "expected": "initial instead of the photo",
+  "result": "photo 0, initial 1",
+  "pass": true
+ },
+ {
+  "test": "7 Remove photo goes back to the initial",
+  "expected": "initial circle on Profile",
+  "result": "photo 0, initial 1",
+  "pass": true
+ },
+ {
+  "test": "Page errors (seller, buyer, manager)",
+  "expected": "0",
+  "result": "[]",
+  "pass": true
+ },
+ {
+  "test": "3 Donation on sale at once at the typical price",
+  "expected": "clothes, good = 450 CZK (table), demo: true",
+  "result": "{'price': 450, 'demo': True, 'dorm': 'thaler'}",
+  "pass": true
+ },
+ {
+  "test": "3 A Demo account's listing is seen only by that demo copy",
+  "expected": "demo sees it, another visitor does not",
+  "result": "demo 1, other 0",
+  "pass": true
+ },
+ {
+  "test": "4 Other dorm: search only on Search, at most 1 a second",
+  "expected": "0 requests while typing; 2 searches 1 s or more apart; 1 place found with full address",
+  "result": "0 while typing, gaps [1.23], results 1",
+  "pass": true
+ },
+ {
+  "test": "4 Chosen place on the map, saved as my dorm, counts as Ask for a stand",
+  "expected": "pin, full address, dorm custom, waitlist entry, Home says no stand yet and shows nearest items",
+  "result": "pin 1, 'Kolej Hlávkova\nKolej Hlávkova, Žitná, Nové Město, Praha, 110', dorm custom, waitlist ['Kolej Hlávkova, Žitná, Nové Mě'], home 'Your dorm: Kolej Hlávkova (no stand yet)\nChange'",
+  "pass": true
+ },
+ {
+  "test": "4 Distances and nearest stand work from it",
+  "expected": "stands sorted from Kolej Hlávkova, Švehlova or Podolí first",
+  "result": "Koleje Strahov",
+  "pass": true
+ },
+ {
+  "test": "4 Search fails: tap the map to place the pin",
+  "expected": "message, pin by tap, saved with position",
+  "result": "msg 1, pin 1, {'name': 'Kolej Nowhere', 'address': '', 'lat': 50.08596, 'lon': 14.44805}",
+  "pass": true
+ },
+ {
+  "test": "4 Nothing found and no map: save the name alone",
+  "expected": "\"Nothing found\", saved name only",
+  "result": "none 1, {'name': 'Kolej Mala', 'address': '', 'lat': None, 'lon': None}",
+  "pass": true
+ },
+ {
+  "test": "Page errors (other dorm)",
+  "expected": "0",
+  "result": "[]",
+  "pass": true
+ },
+ {
+  "test": "6 Credits only in About, OSM credit stays on the map",
+  "expected": "0 credit lines elsewhere; map corner \"© OpenStreetMap contributors\"; About lists every picture with links",
+  "result": "leaks [], corner \"© OpenStreetMap contributors\", About 54 lines and 94 links",
+  "pass": true
+ },
+ {
+  "test": "8 Demo account never on the leaderboard",
+  "expected": "no entry for the demo copy",
+  "result": "[]",
+  "pass": true
+ }
+]

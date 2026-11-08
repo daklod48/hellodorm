@@ -103,8 +103,9 @@ with sync_playwright() as pw:
       for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) { const a = r[i], b = r[j]; if (a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1) n++; } return n; }''')
     pin_pairs = p.evaluate('''() => { const ws = [...document.querySelectorAll('#standsMap .lpin-wrap')]; let n = 0; ws.forEach((w) => { const a = w.querySelector('.lpin').getBoundingClientRect(), l = w.querySelector('.lpin-l').getBoundingClientRect(); if (a.bottom > l.top + 1) n++; }); return n; }''')
     rec('Map pins and names do not overlap', '0 overlapping pins or names (own label below its pin)', f'{ov - 0} overlapping boxes', ov == 0)
-    credit = p.locator('.map-credit').inner_text() + ' ' + p.locator('.leaflet-control-attribution').inner_text()
-    rec('Map credits', '"© OpenStreetMap contributors" and "Routing: FOSSGIS OSRM"', credit.replace('\n', ' '), '© OpenStreetMap contributors' in credit and 'Routing: FOSSGIS OSRM' in credit)
+    # Round 6: all credits moved to About us; only the OpenStreetMap credit stays in the map's corner.
+    credit = p.locator('#standsMap .leaflet-control-attribution').inner_text()
+    rec('Map credits', '"© OpenStreetMap contributors" in the map corner (FOSSGIS credit in About since round 6)', credit.replace('\n', ' '), '© OpenStreetMap contributors' in credit)
     z0 = p.evaluate('document.querySelector("#standsMap").hdMap.getZoom()')
     box = p.locator('#standsMap').bounding_box(); cx, cy = box['x'] + box['width'] / 2, box['y'] + box['height'] / 2
     p.mouse.move(cx, cy); p.mouse.wheel(0, -400); p.wait_for_timeout(700)
