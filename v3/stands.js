@@ -70,6 +70,7 @@ function standPopup(d) {
   const me = d.id === S.prof.dorm;
   return `<div class="map-pop"><b>${esc(d.name)}</b>${me ? ` <span class="pill green">${t('your_dorm')}</span>` : ''}
     <p class="meta small"><span>${t('n_items', { n: standCount(d.id) })}</span></p>
+    <p class="meta small">${ic('clock')}<span>${hoursTxt(d)}</span></p>
     <p class="meta small">${openBadge(d)}</p>
     <div class="row-btns"><button class="btn primary sm" data-act="route" data-id="${d.id}">${ic('footprints')}${t('walk_route')}</button>
     <button class="btn outline sm" data-act="stand-items" data-id="${d.id}">${t('see_items')}</button></div></div>`;
@@ -167,7 +168,7 @@ SCREENS.stands = (view) => {
         <span class="stand-ic ${d.id === S.prof.dorm ? 'me' : ''}">${ic('store')}</span>
         <div><b>${esc(d.name)} ${d.id === S.prof.dorm ? `<span class="pill green">${t('your_dorm')}</span>` : ''} ${d.full ? `<span class="pill red">${ic('ban')}${t('full_today')}</span>` : ''}</b>
           <p class="meta"><span>${esc(d.address)}${base ? ' · ' + fmtDist(distanceM(base, d)) : ''}</span></p>
-          <p class="meta small">${ic('clock')}<span>${hoursTxt()} · ${t('n_items', { n: standCount(d.id) })}</span></p>
+          <p class="meta small">${ic('clock')}<span>${hoursTxt(d)} · ${t('n_items', { n: standCount(d.id) })}</span></p>
           <p class="meta small">${openBadge(d)}</p>
           <div class="row-btns">${d.id !== S.prof.dorm || S.pos ? `<button class="btn outline sm" data-act="route" data-id="${d.id}">${ic('footprints')}${t('walk_route')}</button>` : ''}
           <button class="btn outline sm" data-act="pick-dorm" data-id="${d.id}">${d.id === S.prof.dorm ? ic('check') : ''}${t(d.id === S.prof.dorm ? 'your_dorm' : 'set_mine')}</button></div></div></div>`).join('')}</div>

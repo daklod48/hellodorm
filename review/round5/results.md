@@ -26,9 +26,9 @@
 | Sold cart item shows Swap | row of k1 shows a similar available kitchen item | swap to k2 | PASS |
 | One tap Swap replaces it | cart has k2 instead of k1 | ['k2', 'k4', 'e5', 'f3'] | PASS |
 | Sold saved item shows Swap and replaces it | Saved row offers Swap, k1 replaced | True, hearts ['k2'] | PASS |
-| Open now at 15:00 Prague (Wed, hours 16:00 to 19:00) | Opens at 16:00 | "Opens at 16:00", icon 1 | PASS |
-| Open now at 21:00 Prague (Wed, hours 16:00 to 19:00) | Closed, opens tomorrow at 16:00 | "Closed, opens tomorrow at 16:00", icon 1 | PASS |
-| Open now at 17:30 Prague (Wed, hours 16:00 to 19:00) | Open now, until 19:00 | "Open now, until 19:00", icon 1 | PASS |
+| Open now at 05:30 Prague (Strahov, closed 05:00 to 06:00) | Closed, opens at 06:00 | "Closed, opens at 06:00", icon 1 | PASS |
+| Open now at 06:10 Prague (Strahov, closed 05:00 to 06:00) | Open now, until 05:00 | "Open now, until 05:00", icon 1 | PASS |
+| Open now at 17:30 Prague (Strahov, closed 05:00 to 06:00) | Open now, until 05:00 | "Open now, until 05:00", icon 1 | PASS |
 | Photo label inside its box at 320 px | overlaps 0, label at most 85 %, 3 lines, 12 px or more | 1 label cards on the last page, problems 0 [] | PASS |
 | Photo label inside its box at 390 px | overlaps 0, label at most 85 %, 3 lines, 12 px or more | 1 label cards on the last page, problems 0 [] | PASS |
 | Photo label inside its box at 1280 px | overlaps 0, label at most 85 %, 3 lines, 12 px or more | 1 label cards on the last page, problems 0 [] | PASS |

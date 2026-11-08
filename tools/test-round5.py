@@ -187,11 +187,12 @@ with sync_playwright() as pw:
     ctx.close()
 
     # ---------- 6. Open now (Prague time; the test browser is set to New York to prove the zone is used) ----------
-    for clock, want in [('2026-11-11T15:00:00+01:00', 'Opens at 16:00'), ('2026-11-11T21:00:00+01:00', 'Closed, opens tomorrow at 16:00'), ('2026-11-11T17:30:00+01:00', 'Open now, until 19:00')]:
+    # Round 7 hours: open 24 hours except Strahov 05:00 to 06:00 (and Thalerova 01:00 to 03:00, see test-round7.py).
+    for clock, want in [('2026-11-11T05:30:00+01:00', 'Closed, opens at 06:00'), ('2026-11-11T06:10:00+01:00', 'Open now, until 05:00'), ('2026-11-11T17:30:00+01:00', 'Open now, until 05:00')]:
         ctx = new_ctx(b, tz='America/New_York'); pg = ctx.new_page(); pg.clock.install(time=clock)
         pg.goto(BASE + '#/stands/list'); pg.wait_for_selector('html[data-app=ready]', timeout=20000); pg.wait_for_timeout(700)
         txt = pg.locator('#stand-strahov .open-badge').inner_text(); icon = pg.locator('#stand-strahov .open-badge svg').count()
-        rec(f'Open now at {clock[11:16]} Prague (Wed, hours 16:00 to 19:00)', want, f'"{txt}", icon {icon}', txt == want and icon == 1)
+        rec(f'Open now at {clock[11:16]} Prague (Strahov, closed 05:00 to 06:00)', want, f'"{txt}", icon {icon}', txt == want and icon == 1)
         ctx.close()
 
     # ---------- 7. Listing without a photo: label inside its box ----------

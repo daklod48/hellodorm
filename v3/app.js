@@ -16,7 +16,7 @@ import {
 import { FIREBASE_CONFIG, MANAGER_UIDS, NTFY_TOPIC } from './config.js';
 import { TEXTS } from './texts.js';
 import { ICONS } from './icons.js';
-import { DORMS, STAND_HOURS, dormById as standById, distanceM } from './data/dorms.js';
+import { DORMS, dormById as standById, distanceM } from './data/dorms.js';
 import { ITEMS, itemById as sampleById } from './data/items.js';
 import { words, prepare, scoreFields } from './search.js';
 import { CATEGORIES, SHOP_CATEGORIES, CONDITIONS, AUTO_OFFER_MINUTES, catById, standardOffer, standardResale } from './data/prices.js';
@@ -112,12 +112,10 @@ function fmtLeft(ms) {
   if (h >= 24) return nb(t('left_dh', { d: Math.floor(h / 24), h: h % 24 }));
   return nb(t('left_hm', { h, m }));
 }
-// v3: a reservation is held 48 hours, and always at least until the end of the next pickup window, so the hold never
-// runs out before the stand opens (fresh eyes review, 7 Nov 2026: "held 1 day 13 h" while "pickup opens in 1 day 18 h").
-function holdUntil(from = now()) {
-  const w = nextWindow(from + 1);
-  return Math.max(from + HOLD_H * HOUR, w ? w.end : 0);
-}
+// Round 7: a reservation is held 48 hours. If that moment falls inside the stand's daily closed period (Thalerova
+// 01:00 to 03:00, Strahov 05:00 to 06:00), the hold runs on until the stand opens again.
+function holdUntil(from = now(), d = null) { return holdEnd(d, from + HOLD_H * HOUR); }
+function holdEnd(d, end) { const st = d ? standStatus(d, end) : { open: true }; return st.open ? end : end + st.waitMs; }
 function fmtAgo(ms) {
   const m = Math.max(1, Math.round(ms / MIN));
   if (m < 60) return t('ago_m', { n: m });
@@ -147,19 +145,9 @@ const distTxt = (dormId) => { const m = distTo(dormId); return m == null ? '' : 
 // Short distance label for cards: "in your dorm" instead of "0 m" when measured from the user's own dorm.
 const distShort = (dormId) => { const m = distTo(dormId); if (m == null) return ''; return !S.pos && dormId === S.prof.dorm ? t('in_your_dorm') : fmtDist(m); };
 
-// Next opening window of a stand, from now(), e.g. Mon 16:00 to 19:00.
-function nextWindow(from = now()) {
-  for (let i = 0; i < 8; i++) {
-    const day = new Date(from + i * DAY);
-    const h = STAND_HOURS[day.getDay()];
-    if (!h) continue;
-    const start = new Date(day); start.setHours(h[0], 0, 0, 0);
-    const end = new Date(day); end.setHours(h[1], 0, 0, 0);
-    if (end.getTime() > from) return { start: start.getTime(), end: end.getTime(), open: start.getTime() <= from };
-  }
-  return null;
-}
-const hoursTxt = () => t('hours_txt');
+// Round 7: hours line of a stand: "Open 24 hours, every day", or "Open every day, closed 01:00 to 03:00".
+const closedTxt = (d) => (d.closed || []).map(([a, b]) => `${hh(a)} ${t('to')} ${hh(b)}`).join(', ');
+const hoursTxt = (d) => (d && d.closed && d.closed.length ? t('hours_closed', { c: closedTxt(d) }) : t('hours_24'));
 
 // ---------- v3: "Open now" computed in Prague time (Europe/Prague), whatever time zone the phone or laptop is set to ----------
 // The Prague clock is made on first use, not when the app starts (time zone data costs a moment on slow phones).
@@ -170,43 +158,41 @@ function pragueClock(ms) {
   const p = Object.fromEntries(PRAGUE_FMT.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
   return { wd: WD[p.weekday], min: (+p.hour % 24) * 60 + +p.minute };
 }
-// A dorm may carry its own hours (d.hours, same shape as STAND_HOURS: weekday -> [open hour, close hour]); else the shared hours.
+// Round 7: open all day unless the time (Prague) is inside one of the dorm's daily closed periods.
+// Returns { open: true, always } or { open: true, until: <closing hour> } or { open: false, at: <opening hour>, waitMs }.
 function standStatus(d, at = now()) {
-  const hours = (d && d.hours) || STAND_HOURS, c = pragueClock(at), today = hours[c.wd];
-  if (today && c.min >= today[0] * 60 && c.min < today[1] * 60) return { open: true, until: today[1] };
-  if (today && c.min < today[0] * 60) return { open: false, at: today[0], inDays: 0 };
-  for (let i = 1; i <= 7; i++) { const wd = (c.wd + i) % 7; if (hours[wd]) return { open: false, at: hours[wd][0], inDays: i, wd }; }
-  return { open: false, none: true };
+  const closed = (d && d.closed) || [], c = pragueClock(at);
+  const inside = closed.find(([a, b]) => c.min >= a * 60 && c.min < b * 60);
+  if (inside) return { open: false, at: inside[1], waitMs: (inside[1] * 60 - c.min) * MIN - (at % MIN) };
+  if (!closed.length) return { open: true, always: true };
+  const next = closed.map(([a]) => a).sort((x, y) => ((x * 60 - c.min + 1440) % 1440) - ((y * 60 - c.min + 1440) % 1440))[0];
+  return { open: true, until: next };
 }
 const hh = (h) => `${String(h).padStart(2, '0')}:00`;
-const WD_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const WD_CS = ['v neděli', 'v pondělí', 'v úterý', 've středu', 've čtvrtek', 'v pátek', 'v sobotu'];
 function openTxt(st) {
-  if (st.none) return t('closed');
-  if (st.open) return t('open_now_until2', { t: hh(st.until) });
-  if (st.inDays === 0) return t('opens_at', { t: hh(st.at) });
-  if (st.inDays === 1) return t('closed_tomorrow', { t: hh(st.at) });
-  return t('closed_day', { d: S.prof.lang === 'cs' ? WD_CS[st.wd] : WD_EN[st.wd], t: hh(st.at) });
+  if (st.open) return st.always ? t('open_now_24') : t('open_now_until2', { t: hh(st.until) });
+  return t('closed_opens_at', { t: hh(st.at) });
 }
+// Next pickup: now if the stand is open, otherwise the time it opens today.
+const nextPickupTxt = (d) => { const st = standStatus(d); return st.open ? t('pickup_now') : t('pickup_from', { t: hh(st.at) }); };
 // Badge with a word and an icon (not colour alone): open door when open, clock when closed.
 function openBadge(d, cls = '') {
   const st = standStatus(d);
   return `<span class="open-badge ${st.open ? 'on' : 'off'} ${cls}" data-open="${st.open ? 1 : 0}">${ic(st.open ? 'door-open' : 'clock')}<span>${openTxt(st)}</span></span>`;
 }
-const winTxt = (w) => `${fmtDate(w.start)}, ${String(new Date(w.start).getHours()).padStart(2, '0')}:00 ${t('to')} ${String(new Date(w.end).getHours()).padStart(2, '0')}:00`;
 // v2: one block that says exactly where and when an item is picked up (item page, checkout, pickup code).
 // A dorm may carry its own 'spot' (en and cs) in data/dorms.js; otherwise a generic, clearly planned location is shown.
 function pickupPlace(d, { title = true, items = '' } = {}) {
-  const w = nextWindow(), me = myDorm();
+  const me = myDorm();
   const dist = me && me.id !== d.id ? t('away', { d: fmtDist(distanceM(me, d)) }) : me ? t('in_your_dorm') : '';
   return `<div class="stand-box pickup-place">
     ${title ? `<p class="eyebrow">${t('pickup_at')}</p>` : ''}
     <h3>${ic('store')}<span>${esc(d.name)}</span></h3>
     <p class="meta">${ic('flag')}<span>${d.spot ? esc(L(d.spot)) : t('stand_spot_default')}</span></p>
     <p class="meta">${ic('map-pin')}<span>${esc(d.address)}${dist ? ` · <b>${dist}</b>` : ''}</span></p>
-    <p class="meta">${ic('clock')}<span>${hoursTxt()}</span></p>
+    <p class="meta">${ic('clock')}<span>${hoursTxt(d)}</span></p>
     <p class="meta">${openBadge(d)}</p>
-    ${w ? `<p class="meta">${ic('calendar')}<span>${t('next_pickup', { w: winTxt(w) })}</span></p>` : ''}
+    <p class="meta">${ic('calendar')}<span>${nextPickupTxt(d)}</span></p>
     ${mapBox(d)}
     ${items}
   </div>`;
@@ -895,7 +881,6 @@ SCREENS.home = () => {
       ${near ? grid(availableItems().filter((i) => i.dorm === near.id).slice(0, 4)) : ''}`;
   } else hereBlock = grid(here.slice(0, 8));
   const draft = S.prof.draft;
-  const w = nextWindow();
   const bg = d ? dormPhoto(d.id) : null;
   return {
     title: t('tab_home'),
@@ -1049,7 +1034,7 @@ function dormNotice(d) {
 SCREENS.item = (id) => {
   const it = itemById(id);
   if (!it) return { title: '', html: empty('search', t('not_found'), '') };
-  const d = dormById(it.dorm), st = shopState(id), w = nextWindow();
+  const d = dormById(it.dorm), st = shopState(id);
   const save = Math.round((1 - it.price / it.newPrice) * 100);
   const similar = availableItems().filter((x) => x.cat === it.cat && x.id !== id).sort((a, b) => (distTo(a.dorm) ?? 0) - (distTo(b.dorm) ?? 0)).slice(0, 4);
   let cta;
@@ -1230,7 +1215,7 @@ async function doCheckout(arg, form, method = 'demo') {
         if (x.status === 'sold' || (x.status === 'reserved' && x.until > n && x.by !== u)) bad.push(lines[i].id);
       });
       if (bad.length) return bad;
-      lines.forEach((it) => tx.set(doc(db, 'shop', it.id), { status: 'reserved', by: u, until: holdUntil(n) }));
+      lines.forEach((it) => tx.set(doc(db, 'shop', it.id), { status: 'reserved', by: u, until: holdUntil(n, standById(it.dorm)) }));
       return [];
     });
     if (taken.length) {
@@ -1247,7 +1232,7 @@ async function doCheckout(arg, form, method = 'demo') {
       const its = lines.filter((x) => x.dorm === dm).map((x) => ({ id: x.id, title: x.title, cat: x.cat, price: x.price, photoId: x.id }));
       const ref = await addDoc(collection(db, 'users', u, 'orders'), {
         group, dorm: dm, code: code('P'), items: its, total: its.reduce((s, x) => s + x.price, 0),
-        status: 'reserved', reservedAt: n, expiresAt: holdUntil(n),
+        status: 'reserved', reservedAt: n, expiresAt: holdUntil(n, standById(dm)),
         paid: true, payMethod: method, paidAt: n,
       });
       ids.push(ref.id);
@@ -1276,7 +1261,7 @@ SCREENS.thanks = (group) => {
       <div class="confirmed">${ic('circle-check')}<div><h2>${t('order_confirmed_t')}</h2><p>${t(list[0].payMethod === 'card' ? 'paid_card_b' : 'paid_demo_b', { p: czk(list.reduce((s, o) => s + orderTotal(o), 0)) })}</p></div></div>
       <div class="cols"><div class="main">
       <h3>${t(list.length > 1 ? 'pickup_codes' : 'pickup_code')}</h3>
-      ${list.map((o) => { const d = dormById(o.dorm); return `<a class="code-card link" href="#/order/${o.id}"><p class="eyebrow">${t('pickup_at')}</p><p class="code-where">${ic('store')}<span><b>${esc(d.name)}</b></span></p><p class="meta">${ic('map-pin')}<span>${esc(d.address)}</span></p><p class="bigcode">${esc(o.code)}</p><p class="meta">${ic('package')}<span>${orderItems(o).map((x) => esc(L(x.title))).join(', ')}</span></p><p class="meta">${ic('clock')}<span>${hoursTxt()}</span></p></a>`; }).join('')}
+      ${list.map((o) => { const d = dormById(o.dorm); return `<a class="code-card link" href="#/order/${o.id}"><p class="eyebrow">${t('pickup_at')}</p><p class="code-where">${ic('store')}<span><b>${esc(d.name)}</b></span></p><p class="meta">${ic('map-pin')}<span>${esc(d.address)}</span></p><p class="bigcode">${esc(o.code)}</p><p class="meta">${ic('package')}<span>${orderItems(o).map((x) => esc(L(x.title))).join(', ')}</span></p><p class="meta">${ic('clock')}<span>${hoursTxt(d)}</span></p></a>`; }).join('')}
       </div><aside class="side">
       <article class="letter">
         ${pipPose('cheer', 'letter-pip', 84)}
@@ -1312,14 +1297,14 @@ SCREENS.placed = (group) => {
 SCREENS.order = (id) => {
   const o = S.orders.find((x) => x.id === id);
   if (!o) return { title: t('nav_orders'), html: empty('ticket', t('loading'), '') };
-  const d = dormById(o.dorm), w = nextWindow();
+  const d = dormById(o.dorm), ost = standStatus(d);
   const it = orderThumb(o), its = orderItems(o);
-  const showSlider = w && w.open;
+  const showSlider = ost.open;
   let body = '';
   const standBox = `<div class="stand-box">
         <h3>${ic('store')}${t('stand_of', { d: d.name })}</h3>
         <p class="meta">${ic('map-pin')}<span>${esc(d.address)}${distTo(d.id) != null ? ' · ' + fmtDist(distTo(d.id)) : ''}</span></p>
-        <p class="meta">${ic('clock')}<span>${hoursTxt()}</span></p>
+        <p class="meta">${ic('clock')}<span>${hoursTxt(d)}</span></p>
       </div>`;
   if (o.status === 'reserved' && o.paid === false) {
     body = `<div class="code-card pending">${ic('credit-card')}<h2>${t('pay_pending_t')}</h2><p>${t('pay_pending_b')}</p>
@@ -1335,7 +1320,7 @@ SCREENS.order = (id) => {
         <div class="hold">${ic('timer')}<span>${t('held_for')}</span><b data-countdown="${o.expiresAt}">${fmtLeft(o.expiresAt - now())}</b></div>
         <div class="bar"><span style="width:${Math.max(0, Math.min(100, ((o.expiresAt - now()) / (HOLD_H * HOUR)) * 100))}%"></span></div>
       </div>
-      ${showSlider ? '' : `<div class="wait-bar">${ic('clock')}<span>${t('opens_in', { t: fmtLeft(w ? w.start - now() : 0) })}</span><small>${w ? winTxt(w) : ''}</small></div>
+      ${showSlider ? '' : `<div class="wait-bar">${ic('clock')}<span>${t('opens_in', { t: fmtLeft(ost.waitMs || 0) })}</span><small>${hoursTxt(d)}</small></div>
         <button class="linkbtn" data-act="pretend">${ic('fast-forward')}<span>${t('pretend_here')}</span></button>`}
       <div class="swipe ${showSlider ? '' : 'hidden'}" id="swipeBox">
         <p><b>${t('at_stand_q')}</b></p>
@@ -1464,9 +1449,10 @@ SCREENS.sell = () => {
     const stands = draft.allStands ? sorted : sorted.slice(0, 6).concat(draft.stand && !sorted.slice(0, 6).some((x) => x.id === draft.stand) ? sorted.filter((x) => x.id === draft.stand) : []);
     const chosen = dormById(draft.stand);
     const nextFree = chosen && chosen.full ? stands.find((x) => !x.full && x.id !== chosen.id) : null;
-    const days = [];
-    let w = nextWindow();
-    while (w && days.length < 6) { days.push(w); w = nextWindow(w.end + MIN); }
+    // Round 7: drop off any time on today or one of the next 6 days (Prague days); the stand's closed period is named.
+    const n0 = Math.floor(now() / MIN) * MIN, mid = n0 - pragueClock(n0).min * MIN;
+    const days = Array.from({ length: 7 }, (_, i) => ({ start: mid + i * DAY }));
+    const dayNote = chosen && chosen.closed ? t('drop_any_except', { c: closedTxt(chosen) }) : t('drop_any');
     if (!draft.day || !days.some((x) => x.start === draft.day)) draft.day = 0;
     body = `<h2>${t('s5_t')}</h2><p class="muted">${t('s5_b')}</p>
       <div class="stand-pick">${stands.map((x) => `<button type="button" class="pick row ${draft.stand === x.id ? 'on' : ''}" aria-pressed="${draft.stand === x.id}" data-act="d-set" data-k="stand" data-v="${x.id}">${tick(draft.stand === x.id)}${ic('store')}<div><b>${t('stand_of', { d: x.short })}${x.id === S.prof.dorm ? ` <span class="pill green">${t('your_dorm')}</span>` : ''}${x.full ? ` <span class="pill red">${ic('ban')}${t('full_today')}</span>` : ''}</b><span>${esc(x.address)} · ${fmtDist(distanceM(S.pos || base, x))}</span></div></button>`).join('')}</div>
@@ -1474,7 +1460,7 @@ SCREENS.sell = () => {
       <button type="button" class="linkbtn" data-act="other-dorm">${ic('map-pin')}<span>${t('od_link')}</span></button>
       ${nextFree ? `<div class="callout warn">${ic('triangle-alert')}<div><b>${t('full_t', { d: chosen.short })}</b><p>${t('full_b', { d: nextFree.short, dist: fmtDist(distanceM(chosen, nextFree)) })}</p></div><button class="btn outline sm" data-act="d-set" data-k="stand" data-v="${nextFree.id}">${t('use_this')}</button></div>` : ''}
       <h3>${t('dropoff_day')}</h3>
-      <div class="day-pick">${days.map((x) => `<button type="button" class="pick day ${draft.day === x.start ? 'on' : ''}" aria-pressed="${draft.day === x.start}" data-act="d-day" data-v="${x.start}">${tick(draft.day === x.start)}${ic('calendar')}<span>${winTxt(x)}</span></button>`).join('')}</div>`;
+      <div class="day-pick">${days.map((x) => `<button type="button" class="pick day ${draft.day === x.start ? 'on' : ''}" aria-pressed="${draft.day === x.start}" data-act="d-day" data-v="${x.start}">${tick(draft.day === x.start)}${ic('calendar')}<span><b>${fmtDate(x.start)}</b><small>${dayNote}</small></span></button>`).join('')}</div>`;
   }
   const canNext = (st === 1 && draft.cat && draft.title.trim() && (draft.cat !== 'other' || draft.other.trim())) || (st === 2 && draft.cond) || st === 3 || (st === 4 && draft.mode)
     || (st === 5 && draft.stand && draft.day && !(dormById(draft.stand) || {}).full);
@@ -1587,7 +1573,7 @@ SCREENS.sold = (id) => {
         <p class="eyebrow">${t('dropoff_code')}</p>
         <p class="bigcode">${esc(it.dropCode)}</p>
         <p class="meta">${ic('store')}<span>${t('stand_of', { d: d.short })} · ${esc(d.address)}</span></p>
-        <p class="meta">${ic('calendar')}<span>${it.dropDay ? winTxt({ start: it.dropDay, end: it.dropDay + (STAND_HOURS[new Date(it.dropDay).getDay()][1] - STAND_HOURS[new Date(it.dropDay).getDay()][0]) * HOUR }) : ''}</span></p>
+        <p class="meta">${ic('calendar')}<span>${it.dropDay ? `${fmtDate(it.dropDay)} · ${hoursTxt(d)}` : ''}</span></p>
       </div>
       <a class="btn primary wide big" href="#/myitem/${id}">${ic('package')}${t('track_item')}</a>
       <a class="btn outline wide" href="#/sell" data-act="d-new">${ic('plus')}${t('list_another')}</a>
@@ -1646,7 +1632,7 @@ SCREENS.myitem = (id) => {
   if (it.status === 'waiting') {
     action = `<div class="code-card"><p class="eyebrow">${t('dropoff_code')}</p><p class="bigcode">${esc(it.dropCode)}</p>
       <p class="meta">${ic('store')}<span>${t('stand_of', { d: d.short })} · ${esc(d.address)}</span></p>
-      <p class="meta">${ic('calendar')}<span>${it.dropDay ? fmtDate(it.dropDay) : ''} · ${hoursTxt()}</span></p></div>
+      <p class="meta">${ic('calendar')}<span>${it.dropDay ? fmtDate(it.dropDay) : ''} · ${hoursTxt(d)}</span></p></div>
       <button class="btn primary wide big" data-act="dropped" data-id="${id}">${ic('package')}${t('i_dropped')}</button>
       <p class="hint center">${t('dropped_hint')}</p>`;
   } else if (it.status === 'examining') {
@@ -2113,7 +2099,7 @@ async function seedDemo(u, lang, guest = {}, count = true) {
   b.set(doc(collection(db, 'users', u, 'orders')), {
     group: code('G'), dorm: 'thaler', code: code('P'), total: 290,
     items: [{ id: 'demo-lamp', photoId: 'e1', title: { en: 'Reading lamp (demo order)', cs: 'Lampička na čtení (ukázková objednávka)' }, cat: 'electronics', price: 290 }],
-    status: 'reserved', reservedAt: n - 10 * HOUR, expiresAt: Math.max(n + 38 * HOUR, (nextWindow(n + 1) || { end: 0 }).end), // demo: held at least until the next pickup window ends
+    status: 'reserved', reservedAt: n - 10 * HOUR, expiresAt: holdEnd(standById('thaler'), n + 38 * HOUR), // demo: runs on past Thalerova's closed hours if it ends inside them
   });
   const notes = collection(db, 'users', u, 'notes');
   b.set(doc(notes), { type: 'offer', p: { title: lang === 'cs' ? 'Kancelářská židle' : 'Office chair', price: 230, stand: 'thaler' }, read: false, at: n - 1 * DAY });

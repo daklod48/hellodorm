@@ -156,21 +156,21 @@
   "pass": true
  },
  {
-  "test": "Open now at 15:00 Prague (Wed, hours 16:00 to 19:00)",
-  "expected": "Opens at 16:00",
-  "result": "\"Opens at 16:00\", icon 1",
+  "test": "Open now at 05:30 Prague (Strahov, closed 05:00 to 06:00)",
+  "expected": "Closed, opens at 06:00",
+  "result": "\"Closed, opens at 06:00\", icon 1",
   "pass": true
  },
  {
-  "test": "Open now at 21:00 Prague (Wed, hours 16:00 to 19:00)",
-  "expected": "Closed, opens tomorrow at 16:00",
-  "result": "\"Closed, opens tomorrow at 16:00\", icon 1",
+  "test": "Open now at 06:10 Prague (Strahov, closed 05:00 to 06:00)",
+  "expected": "Open now, until 05:00",
+  "result": "\"Open now, until 05:00\", icon 1",
   "pass": true
  },
  {
-  "test": "Open now at 17:30 Prague (Wed, hours 16:00 to 19:00)",
-  "expected": "Open now, until 19:00",
-  "result": "\"Open now, until 19:00\", icon 1",
+  "test": "Open now at 17:30 Prague (Strahov, closed 05:00 to 06:00)",
+  "expected": "Open now, until 05:00",
+  "result": "\"Open now, until 05:00\", icon 1",
   "pass": true
  },
  {
