@@ -1899,6 +1899,13 @@ SCREENS.waitlist = () => ({
 });
 
 // ---------- About ----------
+// Round 6 fix: credit labels name the place, never a raw id. A backdrop key is a dorm id (full dorm name) or an area
+// picture shared by several dorms (jarov: the 4 Jarov dorms; roosevelt; hostivar; prague: the fallback for all others).
+function creditPlace(key) {
+  if (TEXTS['area_' + key]) return t('area_' + key);
+  const d = standById(key);
+  return d ? d.name : key;
+}
 SCREENS.about = () => ({
   title: t('about_us'),
   html: `<section class="narrow about">
@@ -1933,8 +1940,8 @@ SCREENS.about = () => ({
     <p class="muted">${t('credits_b')}</p>
     <ul class="credits" id="creditsList">
       <li><b>${t('cr_pip')}</b>: ${t('credit_ai')}</li>
-      ${S.dormCredits.filter((c) => c.source === 'Google Gemini').map((c) => `<li><b>${t('dorm_photo')} ${esc(c.dorm)}</b>: ${t('credit_ai_short')}</li>`).join('')}
-      ${S.dormCredits.filter((c) => c.source !== 'Google Gemini').map((c) => `<li><b>${t('dorm_photo')} ${esc((standById(c.dorm) || { short: c.dorm }).short)}</b>: ${esc(c.author)}, <a href="${esc(c.page)}" target="_blank" rel="noopener">${esc(c.source)}</a>, <a href="${esc(c.licenseUrl)}" target="_blank" rel="noopener">${esc(c.license)}</a></li>`).join('')}
+      ${S.dormCredits.filter((c) => c.source === 'Google Gemini').map((c) => `<li><b>${t('dorm_photo')} ${esc(creditPlace(c.dorm))}</b>: ${t('credit_ai_short')}</li>`).join('')}
+      ${S.dormCredits.filter((c) => c.source !== 'Google Gemini').map((c) => `<li><b>${t('dorm_photo')} ${esc(creditPlace(c.dorm))}</b>: ${esc(c.author)}, <a href="${esc(c.page)}" target="_blank" rel="noopener">${esc(c.source)}</a>, <a href="${esc(c.licenseUrl)}" target="_blank" rel="noopener">${esc(c.license)}</a></li>`).join('')}
       ${S.credits.map((c) => { const it = sampleById(c.id); return `<li><b>${it ? esc(L(it.title)) : t('cr_onb', { n: c.id.slice(1) })}</b>: ${esc(c.photographer)}, <a href="${esc(c.page)}" target="_blank" rel="noopener">${esc(c.source)}</a>, <a href="https://unsplash.com/license" target="_blank" rel="noopener">${t('cr_unsplash_lic')}</a></li>`; }).join('') || `<li>${t('no_photos')}</li>`}
       <li><b>${t('cr_map')}</b>: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a>, ODbL; ${t('cr_map_lib')} <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a> (BSD 2 Clause)</li>
       <li><b>${t('cr_route')}</b>: <a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noopener">FOSSGIS OSRM</a></li>

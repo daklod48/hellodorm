@@ -236,13 +236,9 @@ export const TEXTS = {
   pay_need_b:       { en: 'Your order and pickup code are saved in your account, so you see them on your phone and laptop. No account? The demo account needs no sign up.', cs: 'Objednávka a kód se uloží do účtu, takže je uvidíš v telefonu i notebooku. Nemáš účet? Ukázkový účet nepotřebuje registraci.' },
   pay_how:          { en: 'How do you want to pay?', cs: 'Jak chceš zaplatit?' },
   pay_card_t:       { en: 'Pay by card', cs: 'Platba kartou' },
-  pay_card_b:       { en: 'On Stripe\'s secure test page. Your card details go only to Stripe, never to HelloDorm.', cs: 'Na zabezpečené testovací stránce Stripe. Údaje o kartě dostane jen Stripe, nikdy HelloDorm.' },
-  pay_card_off:     { en: 'Not set up yet: the team still has to add its Stripe test link.', cs: 'Zatím není nastaveno: tým ještě musí přidat testovací odkaz Stripe.' },
   pay_demo_t:       { en: 'Demo pay', cs: 'Ukázková platba' },
   pay_demo_b:       { en: 'Pretends the payment worked. No card, no money.', cs: 'Předstírá úspěšnou platbu. Žádná karta, žádné peníze.' },
-  pay_privacy:      { en: 'HelloDorm never asks for or stores card or bank details.', cs: 'HelloDorm nikdy nechce ani neukládá údaje o kartě nebo účtu.' },
-  pay_card_go:      { en: 'Continue to card payment ({p})', cs: 'Pokračovat k platbě kartou ({p})' },
-  pay_card_leaving: { en: 'Opening Stripe\'s test payment page for {p}.', cs: 'Otevírám testovací platební stránku Stripe na {p}.' },
+  pay_privacy:      { en: 'Demo: card details are made up and nothing is charged; if you save the card, only the name, expiry and last 4 digits are kept.', cs: 'Ukázka: údaje o kartě jsou smyšlené a nic se neúčtuje; když si kartu uložíš, uchová se jen jméno, platnost a poslední 4 číslice.' },
   order_confirmed_t:{ en: 'Order confirmed', cs: 'Objednávka potvrzena' },
   paid_card_b:      { en: 'Paid by card on the demo payment page: {p}. Nothing was charged. Your items are held for you until your pickup.', cs: 'Zaplaceno kartou na ukázkové platební stránce: {p}. Nic se neúčtovalo. Věci ti držíme až do vyzvednutí.' },
   paid_demo_b:      { en: 'Demo payment of {p} accepted (nothing was charged). Your items are held for you for 48 hours.', cs: 'Ukázková platba {p} přijata (nic se neúčtovalo). Věci ti držíme 48 hodin.' },
@@ -254,7 +250,6 @@ export const TEXTS = {
   letter_sign:      { en: 'Pass it on, dorm to dorm. Your HelloDorm team', cs: 'Posílej to dál, z koleje na kolej. Tvůj tým HelloDorm' },
   pay_pending_t:    { en: 'Payment not finished', cs: 'Platba nedokončena' },
   pay_pending_b:    { en: 'Your items are held, but the card payment did not come back from Stripe. Pay to get your pickup code.', cs: 'Věci ti držíme, ale platba kartou se ze Stripe nevrátila. Zaplať a dostaneš kód k vyzvednutí.' },
-  pay_card_again:   { en: 'Try card payment again', cs: 'Zkusit platbu kartou znovu' },
   pay_demo_instead: { en: 'Use demo pay instead', cs: 'Použít ukázkovou platbu' },
   pay_pending_pill: { en: 'Payment pending', cs: 'Čeká na platbu' },
   // v2: community, sign ups, About us, feedback (professor feedback, 5 Nov 2026). Czech (beta): please have a Czech teammate check.
@@ -716,7 +711,7 @@ export const TEXTS = {
   faq12_a:          { en: 'A seal who hates waste. I live in the top bar. Tap me whenever you are stuck.', cs: 'Tuleň, který nesnáší plýtvání. Bydlím v horní liště. Klepni na mě, kdykoli nevíš jak dál.' },
   credit_ai:        { en: 'Illustrations generated with Google Gemini: Pip the seal and the dorm area pictures for Jarov, Rooseveltova and Hostivař.', cs: 'Ilustrace vytvořené pomocí Google Gemini: tuleň Pip a obrázky oblastí kolejí Jarov, Rooseveltova a Hostivař.' },
   credit_ai_short:  { en: 'Illustration: Google Gemini', cs: 'Ilustrace: Google Gemini' },
-  dorm_photo:       { en: 'Dorm photo', cs: 'Foto koleje' },
+  dorm_photo:       { en: 'Dorm picture:', cs: 'Obrázek koleje:' },
 
   // v3 (round 5): search
   results_for:      { en: 'Results for "{q}"', cs: 'Výsledky pro „{q}“' },
@@ -920,4 +915,9 @@ export const TEXTS = {
   cr_search:        { en: 'Place search for Other dorm', cs: 'Hledání míst pro jinou kolej' },
   cr_icons:         { en: 'Icons', cs: 'Ikony' },
   cr_fonts:         { en: 'Fonts', cs: 'Písma' },
+  // round 6 fix: credit labels for area pictures (one picture for several dorms)
+  area_jarov:       { en: 'Jarov dorms (Palachova, Eislerova, Thalerova, Kolej Jarov II)', cs: 'Koleje na Jarově (Palachova, Eislerova, Thalerova, Kolej Jarov II)' },
+  area_roosevelt:   { en: 'Rooseveltova kolej', cs: 'Rooseveltova kolej' },
+  area_hostivar:    { en: 'Kolej areál Hostivař', cs: 'Kolej areál Hostivař' },
+  area_prague:      { en: 'Prague (for dorms without their own picture)', cs: 'Praha (pro koleje bez vlastního obrázku)' },
 };
