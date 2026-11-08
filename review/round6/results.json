@@ -26,7 +26,7 @@
  {
   "test": "1 Pay shows the same success screen as Demo pay",
   "expected": "thanks screen with pickup code and letter",
-  "result": "/thanks/GR2YQ7, codes 1, letter 1",
+  "result": "/thanks/GGGNGY, codes 1, letter 1",
   "pass": true
  },
  {
@@ -50,7 +50,7 @@
  {
   "test": "1 Paying with the saved card",
   "expected": "success screen",
-  "result": "/thanks/GN5FXK",
+  "result": "/thanks/GQNFSG",
   "pass": true
  },
  {
@@ -92,7 +92,7 @@
  {
   "test": "3 Manager types the sale price at the offer step",
   "expected": "sale price follows the offer (250) until typed; 390 stored in salePrices",
-  "result": "prefill 250, salePrices {'price': 390, 'at': 1794414620035}, offer 250",
+  "result": "prefill 250, salePrices {'price': 390, 'at': 1794414620090}, offer 250",
   "pass": true
  },
  {
@@ -110,7 +110,7 @@
  {
   "test": "3 Buyer picks it up",
   "expected": "shop entry sold",
-  "result": "{'status': 'sold', 'by': 'u_tester_r6_buyer_1794150344_hellodorm_demo_test', 'until': 9000000000000000}",
+  "result": "{'status': 'sold', 'by': 'u_tester_r6_buyer_1794155665_hellodorm_demo_test', 'until': 9000000000000000}",
   "pass": true
  },
  {
@@ -188,7 +188,7 @@
  {
   "test": "4 Other dorm: search only on Search, at most 1 a second",
   "expected": "0 requests while typing; 2 searches 1 s or more apart; 1 place found with full address",
-  "result": "0 while typing, gaps [1.23], results 1",
+  "result": "0 while typing, gaps [1.26], results 1",
   "pass": true
  },
  {
