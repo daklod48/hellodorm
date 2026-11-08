@@ -61,7 +61,7 @@ def check(p, label, w):
         report(label, 'tap', [f"<{x['tag']} .{x['cls']}> '{x['text']}' {x['w']}x{x['h']}" for x in t])
 
 GUEST = ['home', 'browse', 'item/k1', 'item/k4', 'cart', 'saved', 'stands/map', 'stands/list', 'profile', 'about', 'signin', 'signup', 'orders', 'notes', 'myitems', 'feedback', 'waitlist']
-DEMO = ['home', 'cart', 'myitems', 'orders', 'sell', 'profile', 'notes', 'checkout/k5', 'saved']
+DEMO = ['home', 'cart', 'myitems', 'orders', 'sell', 'profile', 'notes', 'checkout/k5', 'saved', 'card/k5', 'bank', 'addcard', 'transfer', 'board']  # round 6: card page, payout fakes, leaderboard
 with sync_playwright() as pw:
     b = launch(pw)
     for lang in ('en', 'cs'):
@@ -88,6 +88,13 @@ with sync_playwright() as pw:
             p.click('#stand-strahov [data-act=route]'); p.wait_for_selector('.route-res', timeout=15000); p.wait_for_timeout(500); check(p, f'{tag} route panel', w)
             p.evaluate('(() => { const m = document.querySelector("#standsMap").hdMap; let k = 0; m.eachLayer((l) => { if (l.getPopup && l.getPopup() && l.getLatLng && k++ === 13) l.openPopup(); }); })()'); p.wait_for_timeout(600)
             check(p, f'{tag} map popup', w)
+            # round 6: Other dorm dialog (search answer from a stand-in), then the dorm list with Other
+            ctx.route('https://nominatim.openstreetmap.org/**', lambda r: r.fulfill(status=200, content_type='application/json', body='[{"lat": "50.0756", "lon": "14.4141", "name": "Kolej Hlávkova", "display_name": "Kolej Hlávkova, Žitná, Nové Město, Praha, 110 00, Česko"}]'))
+            p.goto(BASE + '#/profile'); p.wait_for_timeout(400); p.click('.set-row[data-act=dorm]'); p.wait_for_timeout(600); check(p, f'{tag} dorm dialog with Other', w)
+            p.click('#modal [data-act=other-dorm]'); p.wait_for_timeout(1500); p.fill('#odQ', 'Hlavkova'); p.click('#fOd button[type=submit]'); p.wait_for_timeout(1500)
+            if p.locator('#odList .dorm-opt').count(): p.click('#odList .dorm-opt >> nth=0'); p.wait_for_timeout(800)
+            check(p, f'{tag} other dorm dialog', w); p.keyboard.press('Escape'); p.wait_for_timeout(300)
+            p.goto(BASE + '#/stands/list'); p.wait_for_timeout(400); p.click('#stand-thaler [data-act=pick-dorm]'); p.wait_for_timeout(300)
             p.goto(BASE + '#/item/k4'); p.wait_for_timeout(500); p.click('[data-act=pbox-route]'); p.wait_for_selector('.pmap .route-res', timeout=15000); p.wait_for_timeout(500); check(p, f'{tag} pickup box route', w)
             # account: welcome scene, then welcome back
             email = f'tester-chk-{lang}-{w}-{int(time.time())}@hellodorm-demo.test'
@@ -96,6 +103,10 @@ with sync_playwright() as pw:
             p.click('#fSignup button[type=submit]'); p.wait_for_timeout(3200); check(p, f'{tag} welcome scene', w)
             p.keyboard.press('Escape'); p.wait_for_timeout(300)
             p.goto(BASE + '#/profile'); p.wait_for_timeout(500); check(p, f'{tag} user profile', w)
+            p.click('[data-act=avatar]'); p.wait_for_timeout(400); p.set_input_files('#avFile', str(HERE / 'rules-test' / 'avatar-sample.png')); p.wait_for_timeout(900); check(p, f'{tag} avatar dialog', w)
+            p.click('#avSave'); p.wait_for_timeout(1200); check(p, f'{tag} profile with photo', w)
+            p.goto(BASE + '#/board'); p.wait_for_timeout(1500); check(p, f'{tag} leaderboard', w)
+            p.goto(BASE + '#/profile'); p.wait_for_timeout(500)
             p.click('#signOutBtn'); p.wait_for_timeout(400); check(p, f'{tag} sign out dialog', w); p.click('#signoutYes'); p.wait_for_timeout(900)
             p.goto(BASE + '#/signin'); p.wait_for_timeout(400); p.fill('#fSignin input[name=email]', email); p.fill('#fSignin input[name=password]', 'madeup123'); p.click('#fSignin button[type=submit]'); p.wait_for_timeout(1500)
             p.goto(BASE + '#/home'); p.wait_for_timeout(700); check(p, f'{tag} welcome back', w)

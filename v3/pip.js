@@ -6,6 +6,7 @@
 export const PIP_POSES = {
   wave: 'img/pip/pip-wave.webp',
   blink: 'img/pip/pip-blink.webp',
+  // 8 Nov 2026: cheer redrawn with two front flippers (the first version had a third one; branch assets/pip-cheer-2026-11-08).
   cheer: 'img/pip/pip-cheer.webp',
   curious: 'img/pip/pip-curious.webp',
   sorry: 'img/pip/pip-sorry.webp',

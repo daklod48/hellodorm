@@ -19,7 +19,7 @@ function drawnMap() {
     ${S.pos ? (() => { const [x, y] = xy(S.pos); return `<g class="you"><circle cx="${x}" cy="${y}" r="7"/><text x="${x + 12}" y="${y + 18}" class="pin-l">${t('you_are_here')}</text></g>`; })() : ''}
   </svg>`;
 }
-const mapCredit = () => `<p class="map-credit">${t('map_credit_osm')} · <a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noopener">${t('map_credit_route')}</a> · Leaflet</p>`;
+// v3 round 6: all credits are in About us; only the OpenStreetMap credit stays on the map itself (Leaflet's corner box).
 
 // Lazy map code: map.js and Leaflet are fetched only here, never on Home.
 let mapModP = null;
@@ -133,7 +133,7 @@ async function openPboxRoute(d, box) {
   box.dataset.live = '1';
   box.innerHTML = `<div class="real-map small" id="pmap-${d.id}" role="region" aria-label="${t('map_aria_real')}"></div>
     <p class="map-hint">${ic('info')}<span>${t('map_hint')}</span></p>
-    <div class="route-panel" aria-live="polite"></div>${mapCredit()}`;
+    <div class="route-panel" aria-live="polite"></div>`;
   const panel = box.querySelector('.route-panel'), el = box.querySelector('.real-map');
   let live = null;
   try {
@@ -161,7 +161,7 @@ SCREENS.stands = (view) => {
       ${view === 'map' ? `<div class="map-box" id="standsMapBox" data-keep="standsMapBox"><div class="real-map" id="standsMap" role="region" aria-label="${t('map_aria_real')}"></div>
         <p class="map-hint">${ic('info')}<span>${t('map_hint')}</span></p></div>
         <div class="route-panel" id="routePanel" data-keep="routePanel" aria-live="polite"><p class="meta small">${ic('footprints')}<span>${t('route_hint')}</span></p></div>
-        ${mapCredit()}` : ''}
+        ` : ''}
       </div><div class="${view === 'map' ? 'side scroll' : ''}">
       <div class="list stands-list ${view === 'map' ? '' : 'two'}">${list.map((d) => `<div class="row-card" id="stand-${d.id}">
         <span class="stand-ic ${d.id === S.prof.dorm ? 'me' : ''}">${ic('store')}</span>

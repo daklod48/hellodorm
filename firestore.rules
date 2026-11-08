@@ -67,17 +67,70 @@ service cloud.firestore {
       allow delete: if isManager() || (signedIn() && resource.data.by == request.auth.uid);
     }
 
-    // v3 (round 5, 7 Nov 2026): items the managers put on sale again (bought from students or donated). No personal data:
-    // what the item is, the stand where it waits, the price and when it was listed. Anyone reads; only managers write.
-    // Profile fields added in v3 (welcomed, welcomedAt, lastSeenAt) live in users/{uid} and are covered by the rule above.
+    // ---------- v3 round 6 (8 Nov 2026): accepted items go on sale at once, leaderboard ----------
+    // Resale price table (CZK) for automatic offers and donations. It must match standardResale() in v3/data/prices.js
+    // (new price x condition factor x 50 %, rounded to 10). Regenerate both together if prices change.
+    function resaleTable() {
+      return { 'kitchen_likenew': 350, 'kitchen_good': 260, 'kitchen_used': 180, 'textiles_likenew': 400, 'textiles_good': 300, 'textiles_used': 200, 'electronics_likenew': 450, 'electronics_good': 340, 'electronics_used': 230, 'furniture_likenew': 750, 'furniture_good': 560, 'furniture_used': 380, 'clothes_likenew': 600, 'clothes_good': 450, 'clothes_used': 300, 'study_likenew': 300, 'study_good': 230, 'study_used': 150, 'other_likenew': 250, 'other_good': 190, 'other_used': 130 };
+    }
+    function listingShape(d) {
+      return d.keys().hasOnly(['title', 'desc', 'cat', 'cond', 'dorm', 'price', 'newPrice', 'photo', 'listedAt', 'kw', 'seller', 'item', 'demo'])
+        && d.title is map && d.desc is map && d.cat is string && d.cond is string
+        && d.price is number && d.price > 0 && d.price <= 100000
+        && d.dorm is string && d.dorm.size() <= 20 && d.listedAt is number
+        && (!('photo' in d) || (d.photo is string && d.photo.size() < 210000));
+    }
+    function itemOf(id) {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)/items/$(id)).data;
+    }
+
+    // Sale price a manager sets at the offer step (or changes later). Only managers write; anyone reads.
+    match /salePrices/{listingId} {
+      allow read: if true;
+      allow create, update: if isManager() && request.resource.data.keys().hasOnly(['price', 'at'])
+        && request.resource.data.price is number && request.resource.data.price > 0;
+      allow delete: if isManager();
+    }
+
+    // Items on sale again (bought from a student or donated). Listing id = <seller uid>_<item id>.
+    // A seller's own app creates it once, the moment their item is accepted or donated, and only at the price a manager
+    // set (salePrices) or, without one, the table price; it cannot change it afterwards. Managers create, change, delete.
+    // A Demo account's listing carries demo: true (the app shows it only to that demo copy), and only it may delete it.
     match /listings/{listingId} {
       allow read: if true;
-      allow create, update: if isManager()
-        && request.resource.data.keys().hasOnly(['title', 'desc', 'cat', 'cond', 'dorm', 'price', 'newPrice', 'photo', 'listedAt', 'kw'])
-        && request.resource.data.price is number && request.resource.data.price > 0
-        && request.resource.data.dorm is string && request.resource.data.dorm.size() <= 20
-        && (!('photo' in request.resource.data) || (request.resource.data.photo is string && request.resource.data.photo.size() < 400000));
-      allow delete: if isManager();
+      allow create, update: if isManager() && listingShape(request.resource.data);
+      allow create: if signedIn() && listingShape(request.resource.data)
+        && request.resource.data.seller == request.auth.uid
+        && request.resource.data.item is string
+        && listingId == request.auth.uid + '_' + request.resource.data.item
+        && request.resource.data.demo == (request.auth.token.firebase.sign_in_provider == 'anonymous')
+        && itemOf(request.resource.data.item).status in ['accepted', 'donated']
+        && itemOf(request.resource.data.item).cat == request.resource.data.cat
+        && itemOf(request.resource.data.item).cond == request.resource.data.cond
+        && request.resource.data.price == (exists(/databases/$(database)/documents/salePrices/$(listingId))
+             ? get(/databases/$(database)/documents/salePrices/$(listingId)).data.price
+             : resaleTable()[request.resource.data.cat + '_' + request.resource.data.cond]);
+      allow delete: if isManager() || (signedIn() && resource.data.seller == request.auth.uid && resource.data.demo == true);
+    }
+
+    // Leaderboard: one small public entry per account, written only by its owner (never by anonymous demo accounts),
+    // with only these fields. The profile photo is a WebP of at most 50 KB (about 68,000 characters as text).
+    match /leaderboard/{uid} {
+      allow read: if true;
+      allow create, update: if signedIn() && request.auth.uid == uid
+        && request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && request.resource.data.keys().hasOnly(['name', 'avatar', 'kg', 'items', 'at'])
+        && request.resource.data.name is string && request.resource.data.name.size() <= 40
+        && request.resource.data.avatar is string && request.resource.data.avatar.size() <= 70000
+        && request.resource.data.kg is number && request.resource.data.kg >= 0 && request.resource.data.kg <= 10000
+        && request.resource.data.items is int && request.resource.data.items >= 1 && request.resource.data.items <= 1000
+        && request.resource.data.at is number;
+      allow delete: if signedIn() && (request.auth.uid == uid || isManager());
+    }
+    // Avatars a manager has hidden from the leaderboard (unsuitable photos). Anyone reads; only managers write.
+    match /lbHide/{uid} {
+      allow read: if true;
+      allow write: if isManager();
     }
 
     // Prototype settings (clock): anyone reads, only managers change.

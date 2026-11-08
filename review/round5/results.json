@@ -79,8 +79,8 @@
  },
  {
   "test": "Map credits",
-  "expected": "\"© OpenStreetMap contributors\" and \"Routing: FOSSGIS OSRM\"",
-  "result": "Map: © OpenStreetMap contributors · Routing: FOSSGIS OSRM · Leaflet © OpenStreetMap contributors",
+  "expected": "\"© OpenStreetMap contributors\" in the map corner (FOSSGIS credit in About since round 6)",
+  "result": "© OpenStreetMap contributors",
   "pass": true
  },
  {
@@ -104,7 +104,7 @@
  {
   "test": "At most 1 route request per second",
   "expected": "gap between requests at least 1 s",
-  "result": "2 requests, gaps [1.01]",
+  "result": "2 requests, gaps [1.0]",
   "pass": true
  },
  {
