@@ -5,7 +5,7 @@
 export const DORMS = [
   { id: 'palach',     name: 'Palachova kolej',     short: 'Palachova',     uni: 'VŠE',  address: 'Hartigova 93/198, 130 00 Praha 3',    lat: 50.09219, lon: 14.48373 },
   { id: 'eisler',     name: 'Eislerova kolej',     short: 'Eislerova',     uni: 'VŠE',  address: 'V Zahrádkách 1953/67, 130 00 Praha 3', lat: 50.09152, lon: 14.48614, full: true },
-  { id: 'thaler',     name: 'Thalerova kolej',     short: 'Thalerova',     uni: 'VŠE',  address: 'Jeseniova 1954/210, 130 00 Praha 3',  lat: 50.09143, lon: 14.48312 },
+  { id: 'thaler',     name: 'Thalerova kolej',     short: 'Thalerova',     uni: 'VŠE',  address: 'Jeseniova 1954/210, 130 00 Praha 3',  lat: 50.09143, lon: 14.48312, closed: [[1, 3]] },
   { id: 'jarov2',     name: 'Kolej Jarov II',      short: 'Jarov II',      uni: 'VŠE',  address: 'Pod lipami 2603/43, 130 00 Praha 3',  lat: 50.09055, lon: 14.49410 },
   { id: 'vltava',     name: 'Kolej Vltava',        short: 'Vltava',        uni: 'VŠE',  address: 'Chemická 953, 148 00 Praha 4',        lat: 50.02006, lon: 14.49552 },
   { id: 'blanice',    name: 'Kolej Blanice',       short: 'Blanice',       uni: 'VŠE',  address: 'Chemická 955, 148 00 Praha 4',        lat: 50.01951, lon: 14.49787 },
@@ -16,16 +16,14 @@ export const DORMS = [
   { id: 'svehlova',   name: 'Kolej Švehlova',      short: 'Švehlova',      uni: 'UK',   address: 'Slavíkova 22, 130 00 Praha 3',        lat: 50.08045, lon: 14.44693 },
   { id: 'listopadu',  name: 'Kolej 17. listopadu', short: '17. listopadu', uni: 'UK',   address: 'Pátkova 3, 180 00 Praha 8',           lat: 50.11664, lon: 14.44241 },
   { id: 'hostivar',   name: 'Kolej areál Hostivař', short: 'Hostivař',     uni: 'UK',   address: 'Weilova 2, 102 00 Praha 10',          lat: 50.05218, lon: 14.53860 },
-  { id: 'strahov',    name: 'Koleje Strahov',      short: 'Strahov',       uni: 'ČVUT', address: 'Vaníčkova 315/7, 160 00 Praha 6',     lat: 50.07980, lon: 14.39044 },
+  { id: 'strahov',    name: 'Koleje Strahov',      short: 'Strahov',       uni: 'ČVUT', address: 'Vaníčkova 315/7, 160 00 Praha 6',     lat: 50.07980, lon: 14.39044, closed: [[5, 6]] },
   { id: 'masaryk',    name: 'Masarykova kolej',    short: 'Masarykova',    uni: 'ČVUT', address: 'Thákurova 550/1, 160 00 Praha 6',     lat: 50.10102, lon: 14.38706 },
   { id: 'podoli',     name: 'Koleje Podolí',       short: 'Podolí',        uni: 'ČVUT', address: 'Na Lysině 772/12, 147 00 Praha 4',    lat: 50.05406, lon: 14.42911 },
 ];
 
-// Fictional stand opening hours (prototype). Day 0 = Sunday.
-export const STAND_HOURS = {
-  1: [16, 19], 2: [16, 19], 3: [16, 19], 4: [16, 19], 5: [16, 19],
-  6: [10, 13],
-};
+// Stand opening hours (round 7, owner's rule, 8 Nov 2026): every stand is open 24 hours a day, 7 days a week.
+// A dorm may carry daily closed periods in Prague time, as [from hour, to hour] pairs: closed: [[1, 3]] means closed
+// every day from 01:00 to 03:00 (Thalerova); Strahov is closed 05:00 to 06:00. Periods stay within one day.
 
 export const dormById = (id) => DORMS.find((d) => d.id === id);
 

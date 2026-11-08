@@ -16,7 +16,7 @@ BASE = sys.argv[1] if len(sys.argv) > 1 else 'http://localhost:8080/v3/'
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / 'review' / 'round6'; OUT.mkdir(parents=True, exist_ok=True)
 PHOTO = OUT / '_test-photo.jpg'
-WED = '2026-11-11T17:30:00+01:00'  # a Wednesday, stands open 16:00 to 19:00 (Prague)
+WED = '2026-11-11T17:30:00+01:00'  # a Wednesday afternoon in Prague; every stand is open then (round 7 hours)
 rows = []
 def rec(test, expected, result, ok):
     rows.append({'test': test, 'expected': expected, 'result': str(result), 'pass': bool(ok)})

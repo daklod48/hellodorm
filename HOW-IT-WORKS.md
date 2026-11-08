@@ -60,7 +60,7 @@ Hosting: the `v1/` files sit on **GitHub Pages**, a free service that serves sta
 | `v1/img/` | Pictures | Item photos (WebP, with credits in `credits.json`), dorm backdrops (`dorms/`), Pip poses (`pip/`). |
 | `v1/fonts/` | Fonts | Inter and Nunito, copied here so the first screen does not wait for Google's servers. |
 | `firestore.rules` | Security rules | Who may read or write what in the database. Pasted into the Firebase console. |
-| `index.html` (top level) | The public link | Forwards https://daklod48.github.io/hellodorm/ to the newest version (`v2/`), keeping any `?dorm=` from an invite link. To point it at v3 later, change `v2/` in that file. |
+| `index.html` (top level) | The public link | Forwards https://daklod48.github.io/hellodorm/ to the newest version (`v3/` since 8 November 2026), keeping any `?dorm=` from an invite link and the `#/screen` part. To point it at a later version, change `v3/` in its three places. |
 | `v2/` | Second version | A copy of `v1/` with the 5 November 2026 changes (sections 10 and 12). Same files, same names. |
 | `tools/` | Checks | Small scripts that scan for dashes and real emails, measure text contrast, tap target sizes, text sizes and field outlines (section 11). |
 | `tools/browser.py` | Shared test setup | Opens the test browser for every check; can swap in the stand-in database (section 11). |
@@ -405,3 +405,13 @@ Everything is in `v3/` (new file `v3/round6.js` holds the new screens and loads 
 5. `lbHide/{uid}`: anyone reads; only managers write.
 
 Nothing else changed: profile fields (`card` with the last 4 digits, `transfers`, `avatar`, `board`, `customDorm`) live in `users/<id>`, which each person already reads and writes only for themselves, and "Other dorm" uses the existing waitlist rule. The rules were tested in the official Firestore emulator (Google's local copy of the database, nothing touches the real one) with 31 checks: `tools/rules-test/rules.test.mjs`, all passed.
+
+## 18. Round 7: stand hours and publishing v3 (8 November 2026)
+
+**Stand hours (owner's rule).** Every stand is open 24 hours a day, 7 days a week, except two: Thalerova is closed every day from 01:00 to 03:00 and Strahov every day from 05:00 to 06:00, always in Prague time (time zone Europe/Prague), whatever time zone the phone or laptop is set to.
+- **The model.** Before, one list of opening times per weekday was shared by all stands (Monday to Friday 16:00 to 19:00, Saturday 10:00 to 13:00), and it could not say "open all day except 01:00 to 03:00". Now a stand is open all day unless its entry in `v3/data/dorms.js` carries daily closed periods: `closed: [[1, 3]]` on Thalerova and `closed: [[5, 6]]` on Strahov (from hour, to hour). To close another stand at night, add the same field to that dorm.
+- **What reads it.** The hours line on stand cards, map popups, item, checkout and pickup code pages ("Open 24 hours, every day", or "Open every day, closed 01:00 to 03:00"); the Open now badge ("Open now, 24 hours", "Open now, until 01:00", "Closed, opens at 03:00"); the pickup line ("Pick up now, any time the stand is open" or "Pick up from 03:00 today"); the pickup slider and the "Pickup opens in" bar; Sell's drop off step (today and the next 6 days, "Any time that day", or "Any time, except 01:00 to 03:00" at Thalerova); and the FAQ.
+- **The hold.** A reservation is held 48 hours. If those 48 hours would end inside a closed period, the hold runs on until the stand opens: for example an order at Thalerova at 01:30 is held until 03:00 two days later.
+- **Checked:** no "16:00 to 19:00" or "10:00 to 13:00" is left anywhere in `v3/`.
+
+**Publishing v3.** On 8 November 2026 the owner said: "the app is good, I will send my friends the links". The public link https://daklod48.github.io/hellodorm/ now forwards to `v3/` (all three places in the top level `index.html`: the script, the no script fallback and the link), keeping invite links such as `?dorm=thaler&ref=invite` and the `#/screen` part. `v1/` and `v2/` are unchanged and stay at https://daklod48.github.io/hellodorm/v1/ and https://daklod48.github.io/hellodorm/v2/.

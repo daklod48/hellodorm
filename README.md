@@ -3,7 +3,7 @@
 **Link for the report (opens the newest version on its Home page, no login): https://daklod48.github.io/hellodorm/**
 
 - v2 (5 November 2026: design pass, professor feedback, see `HOW-IT-WORKS.md` sections 10 and 12): https://daklod48.github.io/hellodorm/v2/
-- v3 (7 November 2026, round 5: search, real map and walking route, best stand, swap, open now, photo label, welcome and coming back, see `HOW-IT-WORKS.md` section 16): https://daklod48.github.io/hellodorm/v3/ (live after the round 5 pull request is merged; the public link keeps opening v2 until the owner says "publish v3").
+- v3 (7 November 2026, round 5: search, real map and walking route, best stand, swap, open now, photo label, welcome and coming back, see `HOW-IT-WORKS.md` section 16): https://daklod48.github.io/hellodorm/v3/ The public link https://daklod48.github.io/hellodorm/ opens v3 since 8 November 2026 (owner's "publish v3"); v1 and v2 stay at their own links.
 - v1 (first version, frozen): https://daklod48.github.io/hellodorm/v1/
 
 Team 5, 3BE314 Entrepreneurship, Assignment 2. Clickable prototype: students sell or donate dorm items at a HelloDorm stand, others buy them cleaned. Built 2026-10-20 with Claude Code from `SPEC.md`, `design-brief.md` and `prague-dorms.md`; design pass the same evening (see `DESIGN-NOTES.md`).
@@ -14,7 +14,7 @@ Team 5, 3BE314 Entrepreneurship, Assignment 2. Clickable prototype: students sel
   - `data/items.js` (30 sample shop items), `data/dorms.js` (16 dorms and stand hours), `data/prices.js` (categories, including Other, and the standard offer table).
   - `img/*.webp` (item photos from Unsplash, 600 x 600, `credits.json` lists photographer and page), `img/dorms/*.webp` (home header backdrops: Wikimedia Commons photos with `credits-dorms.json`, plus three Gemini illustrations), `img/pip/*.webp` (Pip poses, Gemini).
   - `*.old` files are the versions before the design pass (kept, never deleted).
-- `index.html` (top level): forwards the public link to the newest version (`v2/`).
+- `index.html` (top level): forwards the public link to the newest version (`v3/` since 8 November 2026), keeping `?dorm=` invite links and the `#/screen` part.
 - `v2/`: copy of `v1/` made on 5 November 2026, with the phone layout and accessibility changes and the professor's feedback (dorm first, guest checkout, community). Same file names as `v1/`. Frozen since round 5.
 - `v3/`: copy of `v2/` made on 7 November 2026 for round 5 (round 6 on 8 November added `round6.js`: card payment page, payout screens, leaderboard, Other dorm, profile photo), plus `search.js`, `map.js`, `stands.js`, `manager.js`, `fireworks.js` and `vendor/leaflet/` (Leaflet 1.9.4 from npm). Edit this one; `v1/` and `v2/` stay frozen.
 - `LAB/`: the Improvement Lab (rubric, captures, run log, `tracker.html`); see `HOW-IT-WORKS.md` section 14.
@@ -32,9 +32,9 @@ The app uses JavaScript modules, so it must be opened through a small local web 
 
 ## How to run the checks
 With the local server running and Playwright for Python installed (`pip install playwright`; it drives the installed Chrome):
-- `python tools/scan-dashes.py v2` (must end with `0`)
+- `python tools/scan-dashes.py v3` (must end with `0`)
 - `python tools/scan-emails.py` (must end with `0`)
-- `python tools/check-contrast.py http://localhost:8080/v2/ <manager password>` (must end with `0`)
+- `python tools/check-contrast.py http://localhost:8080/v3/ <manager password>` (must end with `0`)
 - `python tools/check-taps.py` (must end with `0`)
 - `python tools/check-readable.py` (must end with `0`)
 - To check only the look without creating test accounts or adding to the counters, run `set HD_FAKE=1` first (details in `HOW-IT-WORKS.md` section 11).
@@ -42,7 +42,7 @@ Lighthouse: run `lighthouse http://localhost:8080/v1/ --preset=mobile` with Node
 
 ## How to change the managers
 Managers are the people who may price or reject items, confirm drop offs and see totals. Since 6 November 2026 they are listed by **Firebase user ID** (UID), not by email, so no email address sits in the public files.
-1. The manager signs up once in v2 with their own email and a password.
+1. The manager signs up once in the app (v3; v2 and v3 share the same accounts) with their own email and a password.
 2. Firebase console > project hellodorm > Build > Authentication > Users: copy the **User UID** of that row.
 3. Add it to the list in `v2/config.js` (`MANAGER_UIDS`) and in `firestore.rules` (`isManager()`); both lists hold the owner's UID since 7 November 2026.
 4. Firebase console > Firestore Database > Rules: paste the whole `firestore.rules` file and press Publish.

@@ -44,6 +44,8 @@ For the assignment's AI statement. One line per correction: date | what the AI (
 | 2026-11-05 to 2026-11-08 | Payout buttons Transfer, Add card and Change bank only showed "Demo only: this button does nothing". | Owner: working demo screens people can try. |
 | 2026-11-07 | Round 5 put photo and routing credits under pictures and maps. | Owner: all credits in About us with links; only the OpenStreetMap credit stays on the map, as its guidelines ask. |
 | 2026-11-08 | Round 6 test script first failed twice on its own mistakes (database handed over as an object; map credit read after leaving the map). | Caught by Claude Code before reporting; the app was right both times. |
+| 2026-10-20 to 2026-11-08 | Stand hours were invented by Claude Code on 20 October (Mon to Fri 16:00 to 19:00, Sat 10:00 to 13:00) as one shared weekday list. | Owner: open 24 hours, 7 days, except Thalerova 01:00 to 03:00 and Strahov 05:00 to 06:00; model changed to daily closed periods per stand. |
+| 2026-11-08 | Round 7 test script failed twice on its own mistakes (a stand not in Sell's first 6; a countdown read 1 second late). | Caught by Claude Code before reporting; the app was right both times. |
 
 ## AI generated images (for the AI statement)
 - Pip the seal (5 poses; the cheer pose redrawn on 2026-11-08 with two front flippers instead of three) and the dorm area illustrations for Jarov, Rooseveltova and Hostivař were generated with Google Gemini on 2026-10-20. Prompts: `IMAGE-PROMPTS.md`. Shown in the app's About screen as "Illustrations generated with Google Gemini".
